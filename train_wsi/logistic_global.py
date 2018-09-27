@@ -7,14 +7,14 @@ import argparse
 import torch
 from torch.utils.data import DataLoader
 
-from papSmear.proj_utils.local_utils import mkdirs
-from papSmear.datasets.wsi_dataset import wsiDataSet as DataSet
-from papSmear.datasets.wsi_dataset import BatchSampler 
+from Core.proj_utils.local_utils import mkdirs
+from Core.datasets.wsi_dataset import wsiDataSet as DataSet
+from Core.datasets.wsi_dataset import BatchSampler 
 
-from papSmear.cfgs.config_pap import cfg
-from papSmear.models.wsinet  import logistWsiNet as wsiNet
-#from papSmear.models.clsnet  import inceptionCellNet as cellNet
-from papSmear.train_wsi_parallel import train_cls
+from Core.cfgs.config_pap import cfg
+from Core.models.wsinet  import logistWsiNet as wsiNet
+#from Core.models.clsnet  import inceptionCellNet as cellNet
+from Core.train_wsi_parallel import train_cls
 
 proj_root = os.path.join('..')
 home = os.path.expanduser('~')

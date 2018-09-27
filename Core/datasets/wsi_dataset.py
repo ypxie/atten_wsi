@@ -194,7 +194,6 @@ class wsiDataSet(Dataset):
                 traceback.print_tb(err.__traceback__)
                 print("Having problem processing index {}".format(index) )
                 index = random.choice(self.indices)
-
                 
     def __iter__(self):
         return self
