@@ -1,3 +1,10 @@
+# Files
+
+
+# Folder
+/data
+
+
 *.DS_Store
 *.pyc
 *py~

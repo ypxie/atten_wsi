@@ -1,1 +1,1 @@
-# atten_wsi
+# Fusion WSI using Attension
