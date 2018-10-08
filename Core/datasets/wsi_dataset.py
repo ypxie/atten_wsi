@@ -1,4 +1,3 @@
-
 from torch.utils.data.dataset import Dataset
 
 
@@ -29,22 +28,18 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-debug_mode = False
-fill_val = np.pi * 1e-8
-
 from .wsi_config import folder_map_dict,class_reverse_map, multi_class_map_dict, \
                         bin_class_map_dict, folder_ratio_map, folder_reverse_map
 
 from .data_utils import get_all_imgs, overlay_bbox, _get_next, aggregate_label, \
                         get_all_imgs, im_loader
 
-
 from torch.utils.data.dataset import Dataset
 
 
 class wsiDataSet(Dataset):
     def __init__(self, data_dir, save_root=None,
-                 multi_class=False, check_sanity=False, 
+                 multi_class=False, check_sanity=False,
                  use_grey=False,  testing = False,
                  test_transform = None,
                  train_transform = None, testing_num=128):
@@ -72,13 +67,13 @@ class wsiDataSet(Dataset):
             self.class_map_dict = bin_class_map_dict
 
         self.folder_ratio_map = folder_ratio_map
-        
+
         self.class_reverse_map = {}
         for k, v in self.class_map_dict.items():
             self.class_reverse_map[v] = k
-        
+
         self.folder_reverse_map = folder_reverse_map
-        # calculate class_ratio_array 
+        # calculate class_ratio_array
         class_ratio_array = [None]*len(self.folder_map_dict.keys())
         for this_k in self.folder_map_dict.keys():
             class_ratio_array[ self.folder_map_dict[this_k]  ] = self.folder_ratio_map[ this_k  ]
@@ -87,9 +82,9 @@ class wsiDataSet(Dataset):
         class_ratio_array = class_ratio_array/np.sum(class_ratio_array)
         self.class_ratio_array = class_ratio_array
         # it's import to use folder_map_dict
-        
-        file_list, label_list = get_all_files(data_dir, inputext = ['.h5'], 
-                                              class_map_dict = self.folder_map_dict, 
+
+        file_list, label_list = get_all_files(data_dir, inputext = ['.h5'],
+                                              class_map_dict = self.folder_map_dict,
                                               pre_load = self.pre_load )
         self.file_list   = file_list
         self.label_list = label_list
@@ -97,14 +92,14 @@ class wsiDataSet(Dataset):
 
         key_list, len_list = [], []
         for k,v in summery_label_dict.items():
-            print('The number of ', k, 'is: ', len(v)) 
-        
+            print('The number of ', k, 'is: ', len(v))
+
         # the following line get {1:[1,2,3,4], 2:[23,25], ...}
         self.label_dict   =  summery_label_dict #aggregate_label(self.label_list)
 
         self.img_num      =  len(self.file_list)
         #self.img_shape    =  img_shape
-        
+
         self.count = 0
         self.batch_count = 0
         self.start = 0
@@ -116,19 +111,19 @@ class wsiDataSet(Dataset):
         self.chosen_num_list =  list( range(100, 140) )
         self.fixed_num = 20
         self.max_num = 140 if not self.testing else self.testing_num
-        
+
         self.data_cache = [None]*len(self.file_list)
 
     def get_true_label(self, label):
         # here label is just id of folder
         # import pdb;pdb.set_trace()
-        new_label =  self.class_map_dict[self.folder_reverse_map[label]] 
+        new_label =  self.class_map_dict[self.folder_reverse_map[label]]
         return new_label
 
     def __len__(self):
         return len(self.file_list)
-    
-    
+
+
     def __getitem__(self, index):
         while True:
             try:
@@ -137,11 +132,11 @@ class wsiDataSet(Dataset):
                 else:
                     this_data_path = self.file_list[index]
                     data = dd.io.load(this_data_path)
-                chosen_num = random.choice(self.chosen_num_list) 
+                chosen_num = random.choice(self.chosen_num_list)
 
                 pos_ratio, label, logits, feat = data['pos_ratio'], data['cls_labels'], data['cls_pred'], data['feat']
                 pos_ratio, label, logits, feat = np.asarray(pos_ratio),  np.asarray(label), np.asarray(logits), np.asarray(feat)
-                
+
                 feat = np.squeeze(feat)
                 #mix_feat = np.concatenate( [feat, logits], axis=1)
                 mix_feat = feat
@@ -159,18 +154,18 @@ class wsiDataSet(Dataset):
                     pos_logits      = logits[self.fixed_num+additoinal_num::, 1] + 1e-5
                     gumbel_probs    = gumbel_softmax_sample(pos_logits, self.temperature)
                     this_probs_norm = gumbel_probs.cpu().numpy()
-                    
-                    fixed_chosen_ind = total_ind[0:self.fixed_num+additoinal_num]
-                    fixed_chosen_ind = np.random.choice(total_ind[0:self.fixed_num+additoinal_num], self.fixed_num) 
 
-                    random_chosen_ind = np.random.choice(total_ind[self.fixed_num+additoinal_num::], 
-                                                         chosen_num-self.fixed_num, 
-                                                         replace=False, p = this_probs_norm ) 
+                    fixed_chosen_ind = total_ind[0:self.fixed_num+additoinal_num]
+                    fixed_chosen_ind = np.random.choice(total_ind[0:self.fixed_num+additoinal_num], self.fixed_num)
+
+                    random_chosen_ind = np.random.choice(total_ind[self.fixed_num+additoinal_num::],
+                                                         chosen_num-self.fixed_num,
+                                                         replace=False, p = this_probs_norm )
 
                     #import pdb; pdb.set_trace()
                     chosen_total_ind_ = np.concatenate([fixed_chosen_ind, random_chosen_ind], 0 )
-                
-                
+
+
                 chosen_total_ind_ = chosen_total_ind_.reshape( (chosen_total_ind_.shape[0],) )
 
                 chosen_feat = mix_feat[chosen_total_ind_]
@@ -180,24 +175,24 @@ class wsiDataSet(Dataset):
 
                 #chosen_pos_ratio = pos_ratio[chosen_total_ind_]
 
-                #this_vlad_feat = improvedVLAD(chosen_probs, self.dictionary) # nxd --> m 
+                #this_vlad_feat = improvedVLAD(chosen_probs, self.dictionary) # nxd --> m
 
                 #final_feat = np.concatenate( [this_vlad_feat, pos_ratio], 0 )
                 this_true_label = self.get_true_label( self.label_list[index] )
                 #import pdb; pdb.set_trace()
                 #print(chosen_probs.shape, pos_ratio,  this_true_label)
                 return feat_placeholder, pos_ratio, this_true_label, true_num
-            
+
             except Exception as err:
                 #print(err)
                 import traceback
                 traceback.print_tb(err.__traceback__)
                 print("Having problem processing index {}".format(index) )
                 index = random.choice(self.indices)
-                
+
     def __iter__(self):
         return self
-    
+
 def sample_gumbel(logits, eps=1e-20):
     #U = torch.rand(logits.size()).cuda()
     U = logits.new_zeros(logits.size()).uniform_()
@@ -207,8 +202,10 @@ def gumbel_softmax_sample(logits, temperature):
     y = logits + sample_gumbel(logits)
     return F.softmax(y / temperature, dim=-1)
 
+
+
 class BatchSampler(object):
-    def __init__(self, label_dict=None, batch_size=32, 
+    def __init__(self, label_dict=None, batch_size=32,
                  class_ratio_array=None, num_sampling =8, data_len = None ):
         self.label_dict = label_dict
         self.batch_size = batch_size
@@ -220,12 +217,12 @@ class BatchSampler(object):
 
     def __iter__(self):
         for idx in range( self.num_batches ):
-            batch = get_indices_balance(self.label_dict, self.num_sampling, 
+            batch = get_indices_balance(self.label_dict, self.num_sampling,
                                         self.batch_size, self.class_ratio_array)
             #print('now processing indexing: ', batch)
             yield batch
             #self.batch_idx = idx
-    
+
     def __len__(self):
         return self.num_batches
 
@@ -250,7 +247,7 @@ def get_indices_balance(label_dict, num_sampling, batch_size, class_ratio_array)
         #label_key   = folder_reverse_map[this_k]
         prob[ idx ] = class_ratio_array[ this_k ]
     prob = prob/np.sum(prob)
-    
+
     #if num_sampling <= len(key_list):
     #    chosen_key = np.random.choice(key_list, num_sampling, replace=False, p=prob )
     #else:
@@ -263,19 +260,19 @@ def get_indices_balance(label_dict, num_sampling, batch_size, class_ratio_array)
         #this_key = chosen_key[idx]
         this_ind = label_dict[this_key] #idx set of all the img in this classes.
         this_num = min(each_chosen,  batch_size - each_chosen*idx)
-        
+
         if this_num <= len(this_ind):
             this_choice = np.random.choice(this_ind, this_num, replace=False )
         else:
             this_choice = np.random.choice(this_ind, this_num, replace=True )
-        
+
         indices.extend( this_choice )
-        
+
     # need to double check the correctness
     return indices
 
 
-def get_all_files(rootFolder, inputext = ['.json'], 
+def get_all_files(rootFolder, inputext = ['.json'],
                   class_map_dict=None, pre_load=True, use_grey=False):
     '''
     Given a root folder, this function needs to return 2 lists. imglist and clslist:
@@ -284,7 +281,7 @@ def get_all_files(rootFolder, inputext = ['.json'],
     sub_folder_list, sub_folder_name = getfolderlist(rootFolder)
     file_list, label_list = [], []
     #print(sub_folder_name, '\n')
-    
+
     for idx, (this_folder, this_folder_name) in enumerate( zip(sub_folder_list, sub_folder_name) ):
         filelist, filenames = getfilelist(this_folder, inputext, with_ext=False)
         this_cls = class_map_dict[this_folder_name]
@@ -304,6 +301,6 @@ def get_all_files(rootFolder, inputext = ['.json'],
                 file_list.append(data)
 
             else:
-                file_list.append(this_file_path)    
+                file_list.append(this_file_path)
             label_list.append(this_cls)
     return file_list, label_list
