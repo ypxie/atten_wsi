@@ -120,7 +120,6 @@ class ThyroidDataSet(Dataset):
     def __len__(self):
         return self.img_num
 
-
     def __getitem__(self, index):
         while True:
             try:
@@ -129,9 +128,14 @@ class ThyroidDataSet(Dataset):
                 else:
                     this_data_path = self.file_list[index]
                     data = dd.io.load(this_data_path)
-                chosen_num = random.choice(self.chosen_num_list)
 
                 label, logits, feat = data['cls_labels'], data['cls_pred'], data['feat']
+                chosen_num = random.choice(self.chosen_num_list)
+
+                label_dist = np.argmax(label, axis=1)
+                count_pos = label.shape[0] - np.count_nonzero(label_dist == 0)
+                pos_ratio = count_pos * 1.0 / label.shape[0]
+
                 feat = np.squeeze(feat)
                 #mix_feat = np.concatenate( [feat, logits], axis=1)
                 mix_feat = feat
@@ -149,7 +153,7 @@ class ThyroidDataSet(Dataset):
                     this_probs_norm = gumbel_probs.cpu().numpy()
 
                     # Use positive samples for selection
-                    this_probs_norm = [1.0 - ele for ele in this_probs_norm]
+                    this_probs_norm = 1.0 - this_probs_norm
                     this_probs_norm = this_probs_norm / np.sum(this_probs_norm)
 
                     # combine fixed number + random chosen number
@@ -158,6 +162,7 @@ class ThyroidDataSet(Dataset):
                     random_chosen_ind = np.random.choice(total_ind[self.fixed_num+additoinal_num::],
                                                          chosen_num-self.fixed_num,
                                                          replace=False, p=this_probs_norm)
+
                     chosen_total_ind_ = np.concatenate([fixed_chosen_ind, random_chosen_ind], 0 )
 
                 chosen_total_ind_ = chosen_total_ind_.reshape( (chosen_total_ind_.shape[0],) )
@@ -166,13 +171,14 @@ class ThyroidDataSet(Dataset):
                 feat_placeholder[0:true_num] = chosen_feat
                 this_true_label = self.get_true_label(self.label_list[index])
 
-                return feat_placeholder, this_true_label, true_num
+                return feat_placeholder, pos_ratio, this_true_label, true_num
 
             except Exception as err:
                 #print(err)
                 import traceback
                 traceback.print_tb(err.__traceback__)
-                print("Having problem processing index {}".format(index) )
+
+                print("Having problem with index {}, path is {}".format(index, os.path.basename(this_data_path)) )
                 index = random.choice(self.indices)
 
     def __iter__(self):

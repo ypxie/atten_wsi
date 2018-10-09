@@ -7,7 +7,7 @@ from .attention import MultiHeadedAttention
 import numpy as np
 
 class BasicConv2d(nn.Module):
-    
+
     def __init__(self, in_channels, out_channels, use_relu=True, **kwargs):
         super(BasicConv2d, self).__init__()
         self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)
@@ -15,31 +15,31 @@ class BasicConv2d(nn.Module):
         self.use_relu = use_relu
 
     def forward(self, x):
-        # change bn after relu 
+        # change bn after relu
         x = self.conv(x)
         if self.use_relu:
             x = F.relu(x, inplace=True)
         else:
             x = F.leaky_relu(x, inplace=True)
-    
+
         return self.bn(x)
 
 
 class logistWsiNet(nn.Module):
     # input must be 299x299
-    
-    def __init__(self, class_num=2, in_channels=2, num_clusters=5, 
+
+    def __init__(self, class_num=2, in_channels=2, num_clusters=5,
                  use_self=None, use_aux=False):
         super(logistWsiNet, self).__init__()
-        
+
         self.in_channels = in_channels
         self.use_self = use_self
         self.use_aux = use_aux
 
         self.register_buffer('device_id', torch.IntTensor(1))
         #self.netvlad = NetVLAD(num_clusters = num_clusters, dim = in_channels, alpha= 2.0)
-        self.atten   = MILAtten(dim=in_channels,  dl = 64, use_self=self.use_self)
-        
+        self.atten   = MILAtten(dim=in_channels,  dl=64, use_self=self.use_self)
+
         layers = [
             #BasicConv2d(self.atten.out_dim, 256, kernel_size=1, use_relu=False),
             nn.Dropout2d(0.5),
@@ -53,14 +53,14 @@ class logistWsiNet(nn.Module):
             self.out_conv = nn.Conv2d(self.atten.out_dim, class_num, kernel_size=1, bias=True)
 
         self._loss = 0
-        
-    
+
+
     def forward(self, x, aux ,label=None, true_num= None):
         #import pdb; pdb.set_trace()
         B, N, C = x.size()[0:3]
         #x = x.view(B, N, C, 1, 1)
         aux = aux.view(B, 1,1, 1)
-        # here deal with 
+        # here deal with
 
         vlad, alpha = self.atten(x, true_num)
 
@@ -73,15 +73,16 @@ class logistWsiNet(nn.Module):
         out = out.squeeze(-1).squeeze(-1)
 
         if self.training:
-            tensor_ = torch.tensor((0.2, 0.8), dtype=torch.float32)
+            # tensor_ = torch.tensor((0.2, 0.8), dtype=torch.float32)
+            tensor_ = torch.tensor((0.33, 0.33, 0.34), dtype=torch.float32)            
             weights = out.new_tensor(tensor_)
-            
+
             assert label is not None, "invalid label for training mode"
-            self._loss = F.nll_loss(F.log_softmax(out, dim=1), label.view(-1), 
+            self._loss = F.nll_loss(F.log_softmax(out, dim=1), label.view(-1),
                                     weight=weights, reduction='none')
-            self._loss += nn.MultiMarginLoss(weight=weights, 
+            self._loss += nn.MultiMarginLoss(weight=weights,
                           reduction='none')(out, label.view(-1))
-            
+
             return out
         else:
             cls_pred       = F.softmax(out, dim=1)
@@ -93,11 +94,11 @@ class logistWsiNet(nn.Module):
 
 class denseWsiNet(nn.Module):
     # input must be 299x299
-    
-    def __init__(self, class_num=2, in_channels=2, num_clusters=5, 
+
+    def __init__(self, class_num=2, in_channels=2, num_clusters=5,
                  multi_head=False, use_self=False , use_aux=False):
         super(denseWsiNet, self).__init__()
-        
+
         self.in_channels = in_channels
         self.use_self = use_self
         self.use_aux = use_aux
@@ -106,7 +107,7 @@ class denseWsiNet(nn.Module):
         #    self.atten   = multHeadMILAtten(dim=in_channels, nhead = 4, dm = 32, dl = 32)
         #else:
         self.atten   = MILAtten(dim=in_channels,  dl = 64, use_self=use_self)
-        
+
         self.conv1   =  BasicConv2d(self.atten.out_dim, 128, kernel_size=1, use_relu=False)
         self.conv2   =  BasicConv2d(128, 64, kernel_size=1, use_relu=False)
         self.conv3   =  BasicConv2d(192, 64, kernel_size=1, use_relu=False)
@@ -118,14 +119,14 @@ class denseWsiNet(nn.Module):
         else:
             self.out_conv = nn.Conv2d(320, class_num, kernel_size=1, bias=True)
         self._loss = 0
-        
+
     def forward(self, x, aux ,label=None, true_num= None):
         #import pdb; pdb.set_trace()
         B, N, C = x.size()[0:3]
         aux = aux.view(B, 1,1, 1)
         vlad, alpha = self.atten(x, true_num)
         vlad = vlad.unsqueeze(-1).unsqueeze(-1)
-        
+
         conv1 = self.conv1(vlad)
         cout1_dense = torch.cat([conv1], 1)
 
@@ -154,13 +155,13 @@ class denseWsiNet(nn.Module):
         if self.training:
             tensor_ = torch.tensor((0.2, 0.8), dtype=torch.float32)
             weights = out.new_tensor(tensor_)
-            
+
             assert label is not None, "invalid label for training mode"
-            self._loss = F.nll_loss(F.log_softmax(out, dim=1), label.view(-1), 
+            self._loss = F.nll_loss(F.log_softmax(out, dim=1), label.view(-1),
                                     weight=weights, reduction='none')
-            self._loss += nn.MultiMarginLoss(weight=weights, 
+            self._loss += nn.MultiMarginLoss(weight=weights,
                           reduction='none')(out, label.view(-1))
-            
+
             return out
         else:
             cls_pred       = F.softmax(out, dim=1)
@@ -182,7 +183,7 @@ def get_mask(B, N, true_num=None):
     ------------
         mask: of type np.bool, of shape (B, N). 1 indicates valid, 0 invalid.
 
-    ''' 
+    '''
     dis_ = np.ones((B, N), dtype=np.int32)
 
     if true_num is not None:
@@ -210,7 +211,7 @@ class MILAtten(nn.Module):
         self.out_dim = dim
         self.dl = dl
         self.atten_dim = self.dim
-        
+
         if use_self is 'self_atten':
             self.atten_dim = 256
             self.f_linear = nn.Linear(self.dim, self.atten_dim)
@@ -226,7 +227,7 @@ class MILAtten(nn.Module):
     def reset_params(self):
         std1 = 1./((self.dl*self.dim)**(1/2))
         self.V.data.uniform_(-std1, std1)
-        
+
         std2 = 1./((self.dl)**(1/2))
         self.W.data.uniform_(-std2, std2)
 
@@ -237,7 +238,7 @@ class MILAtten(nn.Module):
             x: B x N x D
             true_num: B
         Return
-            feat_fusion: 
+            feat_fusion:
                 Bxfeat_dim
             soft_assign
                 BxN
@@ -263,11 +264,11 @@ class MILAtten(nn.Module):
             #import pdb; pdb.set_trace()
             if true_num is not None:
                 x_sum       =  torch.sum(x, dim=1, keepdim=True) # B x 1 x D
-                _num_array  =  true_num.unsqueeze(-1).unsqueeze(-1).expand_as(x_sum) 
+                _num_array  =  true_num.unsqueeze(-1).unsqueeze(-1).expand_as(x_sum)
                 x_mean      =  x_sum/_num_array.float()
             else:
                 x_mean      =  torch.mean(x, dim=1, keepdim=True) # B x 1 x D
-                
+
             _atten_feat =  torch.cat( [x_mean.expand_as(x), x ] , dim=-1  )
             feat_ = x
         else:
@@ -285,9 +286,9 @@ class MILAtten(nn.Module):
         #         this_num = true_num[idx]
         #         if this_num < num_dis:
         #             dis_[idx, this_num::] = -1e20
-        
+
         soft_assign_ = F.softmax(dis_, dim = 1) # BxN
-        
+
         soft_assign = soft_assign_.unsqueeze(-1).expand_as(feat_)  # BxNxD
         feat_fusion = torch.sum(soft_assign*feat_, 1, keepdim=False) # BxD
 

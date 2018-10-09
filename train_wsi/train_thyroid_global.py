@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import os, sys
+import warnings
+warnings.filterwarnings("ignore")
+
 sys.path.insert(0, '..')
 
 import torch
@@ -13,7 +16,7 @@ from pydaily import filesystem
 from Core.datasets.thyroid_dataset import ThyroidDataSet
 from Core.datasets.thyroid_dataset import BatchSampler
 from Core.models.wsinet  import logistWsiNet
-# from Core.train_wsi_parallel import train_cls
+from Core.train_wsi_parallel import train_cls
 
 
 def set_args():
@@ -23,13 +26,14 @@ def set_args():
     parser.add_argument("--lr",              type=float, default=1.0e-2,  help="learning rate (default: 0.01)")
     parser.add_argument("--momentum",        type=float, default=0.9,     help="SGD momentum (default: 0.5)")
     parser.add_argument("--weight_decay",    type=float, default=5.0e-4,  help="weight decay for training")
-    parser.add_argument("--maxepoch",        type=int,   default=1001,    help="number of epochs to train")
+    parser.add_argument("--maxepoch",        type=int,   default=300,    help="number of epochs to train")
     parser.add_argument("--decay_epoch",     type=int,   default=1,       help="lr start to decay linearly from decay_epoch")
     parser.add_argument("--frozen_step",     type=int,   default=0,       help="steps frozen")
-    parser.add_argument("--display_freq",    type=int,   default=300,     help="plot the results every {} batches")
+    parser.add_argument("--display_freq",    type=int,   default=10,     help="plot the results every {} batches")
     parser.add_argument("--save_freq",       type=int,   default=10,      help="how frequent to save the model")
     # model reusing configration
-    parser.add_argument("--reuse_weights",   default=True, action="store_true", help="continue from last checkout point")
+    parser.add_argument("--reuse_weights",   action="store_true", help="continue from last checkout point",
+                                                         default=False)
     parser.add_argument("--load_from_epoch", type=int,   default= 0,      help="load from epoch")
     # model setting
     parser.add_argument("--model_name",      type=str,   default="global")
@@ -43,7 +47,7 @@ def set_args():
 
 
 if  __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+    os.environ["CUDA_VISIBLE_DEVICES"]="2"
     args = set_args()
 
     torch.multiprocessing.set_start_method("forkserver", force=True)
@@ -72,12 +76,11 @@ if  __name__ == '__main__':
         import torch.backends.cudnn as cudnn
         cudnn.benchmark = True
 
-    for (feats, labels, true_nums) in train_dataloader:
-        a = 1
-        import pdb; pdb.set_trace()
+    # # test dataloader
+    # for batch_idx, (batch_data, batch_aux, gt_classes, true_num) in enumerate(test_dataloader):
+    #     import pdb; pdb.set_trace()
 
-
-    # print(">> START training")
-    # model_root = os.path.join(args.data_dir, "Model", args.dataset)
-    # filesystem.overwrite_dir(model_root)
-    # train_cls(train_dataloader, test_dataloader, model_root, args.model_name, net, args)
+    print(">> START training")
+    model_root = os.path.join(args.data_dir, "Models", args.dataset)
+    filesystem.overwrite_dir(model_root)
+    train_cls(train_dataloader, test_dataloader, model_root, args.model_name, net, args)

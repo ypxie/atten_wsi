@@ -1,8 +1,9 @@
 import torch
 from torch.autograd import Variable
 
+
 def load_partial_state_dict(model, state_dict):
-    
+
     own_state = model.state_dict()
     #print('own_Dict', own_state.keys(), 'state_Dict',state_dict.keys())
     for a,b in zip( own_state.keys(), state_dict.keys()):
@@ -26,11 +27,11 @@ def load_partial_state_dict(model, state_dict):
     print ('>> load partial state dict: {} initialized'.format(len(state_dict)))
 
 
+
 def adding_grad_noise(model, eta, time_step):
-    for p in model.parameters(): 
+    for p in model.parameters():
         sigma = eta/time_step**0.55
         this_grad = p.grad
-        
+
         noise = sigma*Variable( torch.randn_like(this_grad)  )
         this_grad += noise
-

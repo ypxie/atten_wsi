@@ -200,7 +200,7 @@ class InceptionFeat(nn.Module):
         self.branch3x3_1 = BasicConv2d(in_channels, 128, kernel_size=1)
         self.branch3x3_2a = BasicConv2d(128, 64, kernel_size=(1, 3), padding=(0, 1))
         self.branch3x3_2b = BasicConv2d(128, 64, kernel_size=(3, 1), padding=(1, 0))
-        
+
         self.branch3x3dbl_1  = BasicConv2d(in_channels, 128, kernel_size=1)
         self.branch3x3dbl_2  = BasicConv2d(128, 128, kernel_size=3, padding=1)
         self.branch3x3dbl_3a = BasicConv2d(128, 64, kernel_size=(1, 3), padding=(0, 1))
@@ -280,12 +280,6 @@ class BasicConv2d(nn.Module):
         self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)
         self.bn   = nn.BatchNorm2d(out_channels, eps=0.001)
     
-    # def forward(self, x):
-    #     # change bn after relu 
-    #     x = self.conv(x)
-    #     x = F.relu(x, inplace=True)
-    #     return self.bn(x)
-
     def forward(self, x):
         x = self.conv(x)
         x = self.bn(x)
