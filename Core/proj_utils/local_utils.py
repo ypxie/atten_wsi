@@ -1,29 +1,27 @@
 # -*- coding: utf-8 -*-
 
+import os, sys
+import math, random
+import re, shutil
 import numpy as np
-import os, math
-from PIL import Image
-from sklearn.neighbors import NearestNeighbors
 import scipy
-import matplotlib.pyplot as plt
-from sklearn.utils import shuffle
-import skimage, skimage.morphology
-import skimage.io
-
-import cv2
-from PIL import Image, ImageDraw
-from scipy.ndimage.interpolation import rotate
-from skimage import color, measure
-import re
 import scipy.ndimage
-
+import scipy.misc as misc
+from scipy.ndimage.interpolation import rotate
+import matplotlib.pyplot as plt
+from skimage import color, measure
+import skimage.morphology
+import skimage.io
+from PIL import Image, ImageDraw
+from sklearn.neighbors import NearestNeighbors
+from sklearn.utils import shuffle
+import cv2
 from numba import jit, autojit
 
-import random, shutil
-import scipy.misc as misc
 
 def get(identifier):
     return get_from_module(identifier, globals(), 'local_utils')
+
 
 def walk_dir(data_dir, file_types, filter=None):
     # file_types = ['.txt', '.kfb'], endswith
@@ -46,9 +44,10 @@ def walk_dir(data_dir, file_types, filter=None):
                         path_list.append( this_path  )
                     break
     return path_list
-    
+
+
 def mkdirs(folders, erase=False):
-    
+
     if type(folders) is not list:
         folders = [folders]
     for fold in folders:
@@ -60,7 +59,7 @@ def mkdirs(folders, erase=False):
                     shutil.rmtree(fold)
                     os.makedirs(fold)
 
-        
+
 class myobj(object):
     pass
 
@@ -69,9 +68,11 @@ def process_sent(this_sent):
     this_sent = ' <start> ' + this_sent + ' <eos> '
     return this_sent
 
+
 def split_words(words):
     words = words.replace('_', ' ')
     return re.findall(r'\w+|\S+', words)
+
 
 def auc(x, y, reorder=False):
     """Compute Area Under the Curve (AUC) using the trapezoidal rule
@@ -143,10 +144,7 @@ def normalize_img(X):
     X = X*255
     return X.astype(np.uint8)
 
-# def imread(imgfile):
-#     assert os.path.exists(imgfile), '{} does not exist!'.format(imgfile)
-#     rmgimg = scipy.misc.imread(imgfile)
-#     return rmgimg
+
 
 def imread(imgfile):
     assert os.path.exists(imgfile), '{} does not exist!'.format(imgfile)
@@ -154,13 +152,10 @@ def imread(imgfile):
     destRGB = cv2.cvtColor(srcBGR, cv2.COLOR_BGR2RGB)
     return destRGB
 
-def writeImg(array, savepath):      
+
+def writeImg(array, savepath):
     #scipy.misc.imsave(savepath, array)
     skimage.io.imsave(savepath, array)
-    #cv2.imwrite(savepath,  array)
-
-#def writeImg(array, savepath):
-#    scipy.misc.imsave(savepath, array)
     #cv2.imwrite(savepath,  array)
 
 
@@ -169,12 +164,15 @@ def to_one_hot(indices, maxlen):
     if type(indices) in [int, float]:
        indices = [int(indices)]
     return np.asarray(np.eye(label_indx + 1)[indices])
+
+
 @autojit
 def RGB2GREY(rgb):
         r, g, b = rgb[:,:,0], rgb[:,:,1], rgb[:,:,2]
         gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
         return gray.astype(np.uint8)
-        
+
+
 @autojit
 def RGB2YUV(input):
     R, G, B= input[...,0],input[...,1],input[...,2]
@@ -184,6 +182,7 @@ def RGB2YUV(input):
     V = (0.615 * R + -0.515 * G + -0.100 * B)
     return np.stack([Y, U, V], axis = -1).astype(int)
 
+
 @autojit
 def YUV2RGB(input):
     Y, U, V= input[...,0],input[...,1],input[...,2]
@@ -191,15 +190,15 @@ def YUV2RGB(input):
     G = (Y - 0.39 * U - 0.58 * V)
     B = (Y + 2.03 * U)
     return np.stack([R, G, B], axis = -1).astype(int)
-    
+
 
 def imresize(img, resizeratio=1, **kwargs):
     '''Take care of cv2 reshape squeeze behevaior'''
     if resizeratio == 1:
         return img
-    outshape = ( int(img.shape[1] * resizeratio) , int(img.shape[0] * resizeratio)) 
+    outshape = ( int(img.shape[1] * resizeratio) , int(img.shape[0] * resizeratio))
     temp = cv2.resize(img, outshape).astype(img.dtype)
-    #outshape = ( int(img.shape[0] * resizeratio) , int(img.shape[1] * resizeratio)) 
+    #outshape = ( int(img.shape[0] * resizeratio) , int(img.shape[1] * resizeratio))
     #temp = misc.imresize(img, size=outshape).astype(float)
     if len(img.shape) == 3 and img.shape[2] == 1:
         temp = np.reshape(temp, temp.shape + (1,))
@@ -221,6 +220,7 @@ def imresize_shape(img, outshape):
     if len(img.shape) == 3 and img.shape[2] == 1:
         temp = np.reshape(temp, temp.shape + (1,))
     return temp
+
 
 def pre_process_img(img, yuv = False, mode = 'vanilla', norm = True):
     if yuv :
@@ -252,6 +252,7 @@ def pre_process_img(img, yuv = False, mode = 'vanilla', norm = True):
             raise Exception('Unknown mode for pre_processing')
     return img
 
+
 def mysqueeze(a, axis = None):
     if axis == None:
         return np.squeeze(a)
@@ -259,6 +260,7 @@ def mysqueeze(a, axis = None):
         return a
     else:
         return np.squeeze(a, axis = axis)
+
 
 def getImg_from_Grid(grid_vec, patchsize):
     patchRow, patchCol = patchsize
@@ -283,6 +285,7 @@ def getImg_from_Grid(grid_vec, patchsize):
               #imshow(img)
     return imgs
 
+
 def getmesh_zigzag(RowPts,ColPts):
     """RowPts means the index of row coordinates,
        ColPts means the index of col coordinates
@@ -298,6 +301,7 @@ def getmesh_zigzag(RowPts,ColPts):
 
     return np.asarray(rr), np.asarray(cc)
 
+
 def getmesh(RowPts,ColPts):
     """RowPts means the index of row coordinates,
        ColPts means the index of col coordinates
@@ -308,17 +312,18 @@ def getmesh(RowPts,ColPts):
         cc.extend([colidx]*len(RowPts))
     return np.asarray(rr), np.asarray(cc)
 
+
 def getfileinfo(imgdir, contourextList, ImgExtList, LabelExt, test_mode = False):
     '''return a list of dictionary {'thisfile':os.path.join(imgdir,f), 'thismatfile':thismatfile}
     '''
     alllist  = [f for f in os.listdir(imgdir)]
     alllist = sorted(alllist)
-    
+
     returnList = []
     for f in alllist:
         if os.path.isfile(os.path.join(imgdir,f)) and \
                    os.path.splitext(f)[1] in ImgExtList:
-            
+
             if test_mode is False:
                 flag = 0
                 for contourext in contourextList:
@@ -334,13 +339,12 @@ def getfileinfo(imgdir, contourextList, ImgExtList, LabelExt, test_mode = False)
                 if flag == 0:
                     print(("Image: {s} does not have matfile".format(s = os.path.splitext(f)[0] )))
             else:
-                
+
                 this_dict = {'thisfile':os.path.join(imgdir,f), 'thismatfile':None}
                 this_dict['file_name'] = f
                 this_dict['mat_name'] = None
                 returnList.append(this_dict)
     return returnList
-
 
 
 def yieldfileinfo(imgdir, contourextList,ImgExtList,LabelExt):
@@ -418,6 +422,7 @@ def getFromFolderList(subfolder_list,  number_list = -1, contourextList = '',
                 break
     return  returnDict_list
 
+
 def getfilelist(Imagefolder, inputext, with_ext=False):
     '''inputext: ['.json'] '''
     if type(inputext) is not list:
@@ -434,12 +439,13 @@ def getfilelist(Imagefolder, inputext, with_ext=False):
                     filenames.append(  os.path.splitext(os.path.basename(f))[0]   )
     return filelist, filenames
 
+
 def getfolderlist(Imagefolder):
     '''inputext: ['.json'] '''
     folder_list = []
     folder_names = []
     allfiles = sorted(os.listdir(Imagefolder))
-    
+
     for f in allfiles:
         this_path = os.path.join(Imagefolder, f)
         if os.path.isdir(this_path):
@@ -447,9 +453,11 @@ def getfolderlist(Imagefolder):
             folder_names.append(f)
     return folder_list, folder_names
 
+
 def find(logicalMatrix):
     totalInd = np.arange(0, len(logicalMatrix.flat))
     return totalInd[logicalMatrix.flatten()]
+
 
 def imshow(img, size=None):
     if size is not None:
@@ -458,6 +466,7 @@ def imshow(img, size=None):
         plt.figure()
     plt.imshow(img)
     plt.show()
+
 
 def fast_Points2Patches(Patches,centerIndx, img, patchsize):
     totalsub = np.unravel_index(centerIndx, [img.shape[0],img.shape[1]])
@@ -484,6 +493,7 @@ def knnsearch(seeds, pints,K):
     knn.fit(seeds)
     distance, index  = knn.kneighbors(pints, return_distance=True)
     return index,distance
+
 
 def Points2Patches(centerIndx, img, patchsize):
     totalsub = np.unravel_index(centerIndx, [img.shape[0],img.shape[1]])
@@ -521,6 +531,7 @@ def CentralToOrigin(centralRow, centralCol,Rowsize,Colsize):
     se['CE'] = int(centralCol + ColRight + 1)
     return se
 
+
 def OriginToCentral(OrigRow, OrigCol,Rowsize,Colsize):
     RowUp = int(Rowsize/2)
     ColLeft = int(Colsize/2)
@@ -545,6 +556,7 @@ def patchflow(Img,chunknum,row,col,channel,**kwargs):
         chunkstart += thisnum
         yield Chunkfile[0:thisnum,:]
 
+
 def Indexflow(Totalnum, batch_size, random=True):
     numberofchunk = int(Totalnum + batch_size - 1)// int(batch_size)   # the floor
     #Chunkfile = np.zeros((batch_size, row*col*channel))
@@ -559,6 +571,7 @@ def Indexflow(Totalnum, batch_size, random=True):
         chunkstart += thisnum
         yield thisInd
 
+
 def batchflow(batch_size, *Data):
     # we dont check Data, they should all have equal first dimension
     Totalnum = Data[0].shape[0]
@@ -568,6 +581,7 @@ def batchflow(batch_size, *Data):
         else:
             batch_tuple = [s[thisInd,...] for s in Data]
             yield tuple(batch_tuple)
+
 
 @autojit
 def overlayImg(img, mask,print_color =[5,119,72],linewidth= 1, alpha = 0.618,savepath = None):
@@ -608,6 +622,7 @@ def overlayImg(img, mask,print_color =[5,119,72],linewidth= 1, alpha = 0.618,sav
     #im = Image.fromarray(img_masked)
     #im.save(savepath)
     return img_masked
+
 
 @jit
 def _combine_markers(label_img, coordinates):
@@ -659,6 +674,7 @@ def combine_markers(label_img, coordinates):
             new_coord[seedcount:seedcount+rem_cord.shape[0],:] = this_seeds
             seedcount += rem_cord.shape[0]
     return new_coord[0:seedcount,:].astype(np.int)
+
 
 @jit
 def intersect(arr_, brr_):
@@ -730,6 +746,7 @@ def safe_boarder(boarder_seed, row, col):
     boarder_seed[boarder_seed[:,1] >= col, 1]  = col-1
     return boarder_seed
 
+
 @autojit
 def label2contour(label_img, org=None, print_color = [0,0,1], linewidth = 2, alpha = 1, returnImg = False):
     #npad = ((1,1),(1,1))
@@ -757,6 +774,7 @@ def label2contour(label_img, org=None, print_color = [0,0,1], linewidth = 2, alp
         contour_mask = skimage.morphology.binary_dilation(contour_img, se)
         masked_img = overlayImg(org, contour_mask , print_color = print_color, alpha = alpha)
     return masked_img, contourlist
+
 
 def split_img(img, windowsize=1000, board = 0, fixed_window = False, step_size = None, tuple_slice = False):
     '''
@@ -940,6 +958,7 @@ def split_img(img, windowsize=1000, board = 0, fixed_window = False, step_size =
 
     return PackDict
 
+
 def split_index(img, windowsize=1000, board = 0, fixed_window = False, step_size = None, tuple_slice = False):
     '''
     img dimension: channel, row, col
@@ -1042,7 +1061,7 @@ def split_index(img, windowsize=1000, board = 0, fixed_window = False, step_size
         pad4d = ((0,0),( left_pad , board), ( left_pad , board ))
         # forget about the 0 padding now.
         pad_img = np.pad(img, pad4d, 'symmetric').astype(img.dtype)
-        
+
         thisrowstart, thiscolstart =0, 0
         thisrowend, thiscolend = 0,0
         for row_idx in range(numRowblocks):
@@ -1094,7 +1113,7 @@ def split_index(img, windowsize=1000, board = 0, fixed_window = False, step_size
                 # extract on local coordinate of a patch
                 extract_slice = (slice(board + row_shift, board + thisrowlen + row_shift),
                                  slice(board + col_shift, board + col_shift + thiscollen))
-                
+
                 identifier =  identifier +1
                 PackList.append((crop_patch_slice, org_slice, extract_slice, thisSize, identifier, org_slice_tuple))
 

@@ -33,5 +33,5 @@ def adding_grad_noise(model, eta, time_step):
         sigma = eta/time_step**0.55
         this_grad = p.grad
 
-        noise = sigma*Variable( torch.randn_like(this_grad)  )
+        noise = sigma*Variable(torch.randn_like(this_grad))
         this_grad += noise

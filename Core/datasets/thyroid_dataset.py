@@ -72,10 +72,10 @@ def gumbel_softmax_sample(logits, temperature):
 
 
 class ThyroidDataSet(Dataset):
-    def __init__(self, data_dir, testing=False, testing_num=128):
+    def __init__(self, data_dir, testing=False, testing_num=128, pre_load=True):
         self.data_dir = data_dir
         self.testing = testing
-        self.pre_load = True
+        self.pre_load = pre_load
         self.testing_num = testing_num
 
         self.class_map_dict = multi_class_map_dict

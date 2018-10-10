@@ -47,31 +47,28 @@ if  __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"]="4"
     args = set_args()
 
+    # Network and GPU setting
     net = logistWsiNet(class_num=args.class_num, in_channels=args.input_fea_num, use_self=args.model_name)
-    # # print(net)
-
-    # Data preparation
-    thyroid_data_root = os.path.join(args.data_dir, args.dataset+"Data")
-    train_data_root = os.path.join(thyroid_data_root, "Train")
-    test_data_root = os.path.join(thyroid_data_root, "Test")
-
-    train_dataset = ThyroidDataSet(train_data_root, testing=False)
-    test_dataset = ThyroidDataSet(test_data_root, testing=True, testing_num=128)
-
-    batch_sampler  = BatchSampler(label_dict=train_dataset.label_dict, batch_size=args.batch_size,
-        data_len=len(train_dataset), class_ratio_array=train_dataset.class_ratio_array, num_sampling=8)
-    train_dataloader = DataLoader(dataset=train_dataset, batch_sampler=batch_sampler,
-        num_workers=4, pin_memory=True)
-    test_dataloader = DataLoader(dataset=test_dataset, batch_size= args.batch_size,
-        num_workers=4, pin_memory=True)
-
-    # CUDA Settings
     cuda_avail = torch.cuda.is_available()
     if cuda_avail :
         net.cuda()
         import torch.backends.cudnn as cudnn
         cudnn.benchmark = True
 
+    # prepare data locations
+    thyroid_data_root = os.path.join(args.data_dir, args.dataset+"Data")
+    train_data_root = os.path.join(thyroid_data_root, "Train")
+    test_data_root = os.path.join(thyroid_data_root, "Test")
+    # create dataset
+    train_dataset = ThyroidDataSet(train_data_root, testing=False)
+    test_dataset = ThyroidDataSet(test_data_root, testing=True, testing_num=128)
+    # create dataloader
+    batch_sampler  = BatchSampler(label_dict=train_dataset.label_dict, batch_size=args.batch_size,
+        data_len=len(train_dataset), class_ratio_array=train_dataset.class_ratio_array, num_sampling=8)
+    train_dataloader = DataLoader(dataset=train_dataset, batch_sampler=batch_sampler,
+        num_workers=4, pin_memory=True)
+    test_dataloader = DataLoader(dataset=test_dataset, batch_size= args.batch_size,
+        num_workers=4, pin_memory=True)
 
     print(">> START training")
     model_root = os.path.join(args.data_dir, "Models", args.dataset)

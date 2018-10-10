@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+
+import os, sys
+
 import torch, math
 from numba import jit
 import torch.nn as nn
@@ -26,9 +30,7 @@ class BasicConv2d(nn.Module):
 
 
 class logistWsiNet(nn.Module):
-    # input must be 299x299
-
-    def __init__(self, class_num=2, in_channels=2, num_clusters=5,
+    def __init__(self, class_num, in_channels, num_clusters=5,
                  use_self=None, use_aux=False):
         super(logistWsiNet, self).__init__()
 
@@ -37,7 +39,6 @@ class logistWsiNet(nn.Module):
         self.use_aux = use_aux
 
         self.register_buffer('device_id', torch.IntTensor(1))
-        #self.netvlad = NetVLAD(num_clusters = num_clusters, dim = in_channels, alpha= 2.0)
         self.atten = MILAtten(dim=in_channels,  dl=64, use_self=self.use_self)
 
         layers = [
@@ -46,43 +47,37 @@ class logistWsiNet(nn.Module):
         self.conv1    = nn.Sequential(*layers)
 
         if self.use_aux:
-            self.out_conv = nn.Conv2d(self.atten.out_dim+1, class_num, kernel_size=1, bias=True)
+            # self.out_conv = nn.Conv2d(self.atten.out_dim+1, class_num, kernel_size=1, bias=True)
+            self.out_conv = nn.Linear(self.atten.out_dim+1, class_num, bias=True)
         else:
-            self.out_conv = nn.Conv2d(self.atten.out_dim, class_num, kernel_size=1, bias=True)
+            # self.out_conv = nn.Conv2d(self.atten.out_dim, class_num, kernel_size=1, bias=True)
+            self.out_conv = nn.Linear(self.atten.out_dim, class_num, bias=True)
 
         self._loss = 0
 
         self.weight_mat = np.array([[0.1, 0.3, 2.0],
                                     [0.7, 0.1, 1.0],
-                                    [2.0, 0.3, 0.1]])
+                                    [3.0, 0.3, 0.1]])
 
     def forward(self, x, aux ,label=None, true_num= None):
-        #import pdb; pdb.set_trace()
-        B, N, C = x.size()[0:3]
-        #x = x.view(B, N, C, 1, 1)
-        aux = aux.view(B, 1,1, 1)
-        # here deal with
+        B, N, C = x.size()
 
         vlad, alpha = self.atten(x, true_num)
-
-        vlad = vlad.unsqueeze(-1).unsqueeze(-1)
         out = self.conv1(vlad)
+
         if self.use_aux:
-            out   = torch.cat([out, aux], dim = 1 )
+            aux = aux.view(B, 1)
+            out = torch.cat([out, aux], dim=1)
 
         out = self.out_conv(out)
-        out = out.squeeze(-1).squeeze(-1)
 
         if self.training:
-            # weights = out.new_tensor(tensor_)
             assert label is not None, "invalid label for training mode"
             self._loss = F.nll_loss(F.log_softmax(out, dim=1), label.view(-1),
-                                     reduction='none')
-            self._loss += nn.MultiMarginLoss(reduction='none')(out, label.view(-1))
-            # self._loss : B x C
+                                     reduction='none') # B x 1
             out_numpy = np.argmax(out.data.cpu().numpy(), axis=1)
             label_numpy = label.data.cpu().numpy().squeeze()
-            this_weight = get_weight(out_numpy, label_numpy, self.weight_mat) # B x C
+            this_weight = get_weight(out_numpy, label_numpy, self.weight_mat)  # B x 1
             this_weight_var = self._loss.new_tensor(torch.from_numpy(this_weight))
 
             self._loss = self._loss * this_weight_var
@@ -95,6 +90,7 @@ class logistWsiNet(nn.Module):
     def loss(self):
         return self._loss
 
+
 @jit(nopython=True)
 def get_weight(preds, label, weight_mat):
     # out B X 1
@@ -106,6 +102,8 @@ def get_weight(preds, label, weight_mat):
         weight_vec[i] = weight_mat[gt][pred]
 
     return weight_vec
+
+
 
 
 
