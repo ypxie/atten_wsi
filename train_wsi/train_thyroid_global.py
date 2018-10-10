@@ -72,9 +72,6 @@ if  __name__ == '__main__':
         import torch.backends.cudnn as cudnn
         cudnn.benchmark = True
 
-    # # test dataloader
-    # for batch_idx, (batch_data, batch_aux, gt_classes, true_num) in enumerate(test_dataloader):
-    #     import pdb; pdb.set_trace()
 
     print(">> START training")
     model_root = os.path.join(args.data_dir, "Models", args.dataset)

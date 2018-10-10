@@ -151,7 +151,10 @@ class ThyroidDataSet(Dataset):
                 feat_placeholder = np.zeros((self.max_num, mix_feat.shape[1]), dtype=np.float32)
 
                 if self.testing:
-                    chosen_total_ind_ = total_ind[0:self.testing_num]
+                    if len(label) > self.testing_num:
+                        chosen_total_ind_ = total_ind[0:self.testing_num]
+                    else:
+                        chosen_total_ind_ = total_ind
                 else:
                     additoinal_num = 10
                     logits          = torch.from_numpy(logits).float() #.cuda()
@@ -172,7 +175,7 @@ class ThyroidDataSet(Dataset):
 
                     chosen_total_ind_ = np.concatenate([fixed_chosen_ind, random_chosen_ind], 0 )
 
-                chosen_total_ind_ = chosen_total_ind_.reshape( (chosen_total_ind_.shape[0],) )
+                chosen_total_ind_ = chosen_total_ind_.reshape((chosen_total_ind_.shape[0],))
                 chosen_feat = mix_feat[chosen_total_ind_]
                 true_num = chosen_feat.shape[0]
                 feat_placeholder[0:true_num] = chosen_feat
@@ -190,28 +193,6 @@ class ThyroidDataSet(Dataset):
 
     def __iter__(self):
         return self
-
-
-
-class BatchSampler(object):
-    def __init__(self, label_dict=None, batch_size=32,
-                 class_ratio_array=None, num_sampling=8, data_len=None):
-        self.label_dict = label_dict
-        self.batch_size = batch_size
-        self.num_sampling = num_sampling
-        self.class_ratio_array = class_ratio_array
-        self.data_len = data_len
-        self.num_batches = self.data_len // self.batch_size
-
-
-    def __iter__(self):
-        for idx in range( self.num_batches):
-            batch = get_indices_balance(self.label_dict, self.num_sampling,
-                                        self.batch_size, self.class_ratio_array)
-            yield batch
-
-    def __len__(self):
-        return self.num_batches
 
 
 def get_indices_balance(label_dict, num_sampling, batch_size, class_ratio_array):
@@ -252,3 +233,24 @@ def get_indices_balance(label_dict, num_sampling, batch_size, class_ratio_array)
         indices.extend(this_choice)
 
     return indices
+
+
+class BatchSampler(object):
+    def __init__(self, label_dict=None, batch_size=32,
+                 class_ratio_array=None, num_sampling=8, data_len=None):
+        self.label_dict = label_dict
+        self.batch_size = batch_size
+        self.num_sampling = num_sampling
+        self.class_ratio_array = class_ratio_array
+        self.data_len = data_len
+        self.num_batches = self.data_len // self.batch_size
+
+
+    def __iter__(self):
+        for idx in range( self.num_batches):
+            batch = get_indices_balance(self.label_dict, self.num_sampling,
+                                        self.batch_size, self.class_ratio_array)
+            yield batch
+
+    def __len__(self):
+        return self.num_batches

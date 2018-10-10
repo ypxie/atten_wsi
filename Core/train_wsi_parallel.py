@@ -15,7 +15,7 @@ from .train_utils import adding_grad_noise, load_partial_state_dict
 
 def train_cls(dataloader, test_dataloader, model_root, mode_name, net, args):
     net.train()
-    frozen_step = getattr(args, 'frozen_step', 2000)
+    frozen_step = getattr(args, 'frozen_step', 0)
     lr = args.lr
     optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=args.momentum,
                                 nesterov=True, weight_decay=args.weight_decay)
