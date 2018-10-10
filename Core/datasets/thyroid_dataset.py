@@ -12,11 +12,24 @@ from torch.utils.data.dataset import Dataset
 from .thyroid_config import multi_class_map_dict, class_reverse_map
 from .thyroid_config import folder_map_dict, folder_reverse_map, folder_ratio_map
 
-from .data_utils import aggregate_label
 from ..proj_utils.local_utils import getfolderlist, getfilelist
 
 
-def get_all_files(rootFolder, inputext = ['.json'], class_map_dict=None, pre_load=True):
+def aggregate_label(label_list):
+    '''
+       label_list:
+    '''
+    num_cell = len(label_list)
+    label_dict = {}
+    unique_lab = np.unique(label_list)
+    for this_key in unique_lab:
+        label_dict[this_key] = []
+    for idx, this_label in  enumerate(label_list):
+        label_dict[this_label].append(idx)
+    return label_dict
+
+
+def get_all_files(rootFolder, inputext = ['.h5'], class_map_dict=None, pre_load=True):
     '''
     Given a root folder, this function needs to return 2 lists. imglist and clslist:
         (img_data, label)
@@ -24,7 +37,6 @@ def get_all_files(rootFolder, inputext = ['.json'], class_map_dict=None, pre_loa
 
     sub_folder_list, sub_folder_name = getfolderlist(rootFolder)
     file_list, label_list = [], []
-    #print(sub_folder_name, '\n')
 
     for idx, (this_folder, this_folder_name) in enumerate( zip(sub_folder_list, sub_folder_name) ):
         filelist, filenames = getfilelist(this_folder, inputext, with_ext=False)
@@ -39,7 +51,6 @@ def get_all_files(rootFolder, inputext = ['.json'], class_map_dict=None, pre_loa
                     traceback.print_tb(err.__traceback__)
                     print('cannot process data[feat] in {}'.format(this_file_path))
                     data = None
-                # print('Finish {}'.format(this_file_path))
                 file_list.append(data)
 
             else:
@@ -64,7 +75,7 @@ class ThyroidDataSet(Dataset):
     def __init__(self, data_dir, testing=False, testing_num=128):
         self.data_dir = data_dir
         self.testing = testing
-        self.pre_load = False
+        self.pre_load = True
         self.testing_num = testing_num
 
         self.class_map_dict = multi_class_map_dict
@@ -99,26 +110,22 @@ class ThyroidDataSet(Dataset):
         self.count = 0
         self.batch_count = 0
         self.start = 0
-
-        self._shuffle = True
         self.indices = list(range(self.img_num))
         self.temperature = 0.5
-
         ## doubt about the following two
-        self.chosen_num_list = list(range(100, 140))
         self.fixed_num = 20
-
-        self.max_num = len(self.file_list)
-        self.max_num = 140 if not self.testing else self.testing_num
-        self.data_cache = [None]*len(self.file_list)
+        self.chosen_num_list = list(range(128, 164))
+        self.max_num = 164 if not self.testing else self.testing_num
 
 
     def get_true_label(self, label):
         new_label =  self.class_map_dict[self.folder_reverse_map[label]]
         return new_label
 
+
     def __len__(self):
         return self.img_num
+
 
     def __getitem__(self, index):
         while True:
@@ -178,7 +185,7 @@ class ThyroidDataSet(Dataset):
                 import traceback
                 traceback.print_tb(err.__traceback__)
 
-                print("Having problem with index {}, path is {}".format(index, os.path.basename(this_data_path)) )
+                print("Having problem with index {}".format(index) )
                 index = random.choice(self.indices)
 
     def __iter__(self):

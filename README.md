@@ -1,1 +1,1 @@
-# Fusion WSI using Attension
+# Fusion WSI using Attention

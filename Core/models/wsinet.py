@@ -38,12 +38,10 @@ class logistWsiNet(nn.Module):
 
         self.register_buffer('device_id', torch.IntTensor(1))
         #self.netvlad = NetVLAD(num_clusters = num_clusters, dim = in_channels, alpha= 2.0)
-        self.atten   = MILAtten(dim=in_channels,  dl=64, use_self=self.use_self)
+        self.atten = MILAtten(dim=in_channels,  dl=64, use_self=self.use_self)
 
         layers = [
-            #BasicConv2d(self.atten.out_dim, 256, kernel_size=1, use_relu=False),
             nn.Dropout2d(0.5),
-            #BasicConv2d(256, 128, kernel_size=1, use_relu=False),
          ]
         self.conv1    = nn.Sequential(*layers)
 
@@ -54,6 +52,9 @@ class logistWsiNet(nn.Module):
 
         self._loss = 0
 
+        self.weight_mat = np.array([[0.1, 0.3, 2.0],
+                                    [0.7, 0.1, 1.0],
+                                    [2.0, 0.3, 0.1]])
 
     def forward(self, x, aux ,label=None, true_num= None):
         #import pdb; pdb.set_trace()
@@ -73,24 +74,40 @@ class logistWsiNet(nn.Module):
         out = out.squeeze(-1).squeeze(-1)
 
         if self.training:
-            # tensor_ = torch.tensor((0.2, 0.8), dtype=torch.float32)
-            tensor_ = torch.tensor((0.33, 0.33, 0.34), dtype=torch.float32)            
-            weights = out.new_tensor(tensor_)
-
+            # weights = out.new_tensor(tensor_)
             assert label is not None, "invalid label for training mode"
             self._loss = F.nll_loss(F.log_softmax(out, dim=1), label.view(-1),
-                                    weight=weights, reduction='none')
-            self._loss += nn.MultiMarginLoss(weight=weights,
-                          reduction='none')(out, label.view(-1))
+                                     reduction='none')
+            self._loss += nn.MultiMarginLoss(reduction='none')(out, label.view(-1))
+            # self._loss : B x C
+            out_numpy = np.argmax(out.data.cpu().numpy(), axis=1)
+            label_numpy = label.data.cpu().numpy().squeeze()
+            this_weight = get_weight(out_numpy, label_numpy, self.weight_mat) # B x C
+            this_weight_var = self._loss.new_tensor(torch.from_numpy(this_weight))
 
+            self._loss = self._loss * this_weight_var
             return out
         else:
-            cls_pred       = F.softmax(out, dim=1)
+            cls_pred = F.softmax(out, dim=1)
             return cls_pred
 
     @property
     def loss(self):
         return self._loss
+
+@jit(nopython=True)
+def get_weight(preds, label, weight_mat):
+    # out B X 1
+    # LABEL: B x 1
+    # weight_mat C * C
+    weight_vec = np.zeros((preds.shape[0], ))
+    for i in range(weight_vec.shape[0]):
+        gt, pred = label[i], preds[i]
+        weight_vec[i] = weight_mat[gt][pred]
+
+    return weight_vec
+
+
 
 class denseWsiNet(nn.Module):
     # input must be 299x299

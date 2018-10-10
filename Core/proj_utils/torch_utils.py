@@ -21,7 +21,7 @@ def set_lr(optimizer, lr):
         param_group['lr'] = lr
 
     return optimizer
-    
+
 def multinomial(pred):
     shape = pred.size()
     valid_shape = list(pred.size())
@@ -39,13 +39,13 @@ def validate(model, valid_flow, cuda=False):
     acc = []
     pred_list, target_list = [], []
     for data, label, _ in valid_flow:
-        
+
         data, label = to_device(data, model.device_id), to_device(label, model.device_id)
         pred = model(data).data
         _, target = label.topk(1,dim=1)
         pred_list.append(pred)
         target_list.append(target.data)
-    
+
     acc = cls_accuracy( torch.cat(pred_list,0), torch.cat(target_list,0) )
     return acc[0].cpu().numpy().mean()
 
@@ -55,7 +55,7 @@ def cls_accuracy(output, target, topk=(1,)):
     Parameters:
     -----------
     output: (N, dim) torch tensor
-    
+
     """
     maxk = max(topk)
     batch_size = target.size(0)
@@ -71,12 +71,12 @@ def cls_accuracy(output, target, topk=(1,)):
     return res
 
 def to_variable(x, requires_grad=True,  var=True, volatile=False):
-    
+
     if type(x) is np.ndarray:
         x = torch.from_numpy(x.astype(np.float32))
     if var:
         if volatile is True:
-            with torch.no_grad():   
+            with torch.no_grad():
                 x = Variable(x)
         else:
             x = Variable(x, requires_grad=requires_grad)
@@ -96,8 +96,8 @@ def reduce_sum(inputs, dim=None, keep_dim=False):
         return output
     else:
         return expand_dims(output, dim)
-        
-    
+
+
 def pairwise_add(u, v=None, is_batch=False):
     """
     performs a pairwise summation between vectors (possibly the same)
@@ -106,10 +106,10 @@ def pairwise_add(u, v=None, is_batch=False):
     ----------
     u, v: Tensor (m,) or (b,m)
 
-    Returns: 
+    Returns:
     ---------
     Tensor (m, n) or (b, m, n)
-    
+
     """
     u_shape = u.size()
 
@@ -124,7 +124,7 @@ def pairwise_add(u, v=None, is_batch=False):
 
     m = u_shape[0] if not is_batch else u_shape[1]
     n = v_shape[0] if not is_batch else v_shape[1]
-    
+
     u = expand_dims(u, axis=-1)
     new_u_shape = list(u.size())
     new_u_shape[-1] = n
@@ -154,26 +154,26 @@ def cumprod(inputs, dim = 1, exclusive=True):
         output = Variable(inputs.data.new(*shape_).fill_(1.0), requires_grad = True)
         slice_ = [slice(0,None,1) for _ in range(ndim)]
         results = [[]] * n_slot
-            
-        for ind in range(0, n_slot):   
+
+        for ind in range(0, n_slot):
             this_slice, last_slice = copy(slice_), copy(slice_)
             this_slice[dim] = ind
-            last_slice[dim] = ind-1      
+            last_slice[dim] = ind-1
             this_slice = tuple(this_slice)
             last_slice = tuple(last_slice)
-            if exclusive: 
-                if ind > 0:   
+            if exclusive:
+                if ind > 0:
                     results[ind]  = results[ind-1]*inputs[last_slice]
                 else:
                     results[ind] =  torch.div(inputs[this_slice], inputs[this_slice]+1e-8)
-            else:    
-                if ind > 0:   
+            else:
+                if ind > 0:
                     results[ind]  = results[ind - 1]*inputs[this_slice]
                 else:
                     results[ind] =  inputs[this_slice]
-        
+
         return torch.stack(results, dim)
-          
+
 def expand_dims(input, axis=0):
     input_shape = list(input.size())
     if axis < 0:
@@ -182,47 +182,47 @@ def expand_dims(input, axis=0):
     return input.view(*input_shape)
 
 def softmax(input, axis=1):
-    """ 
+    """
     Apply softmax on input at certain axis.
-    
+
     Parammeters:
     ----------
     input: Tensor (N*L or rank>2)
     axis: the axis to apply softmax
-    
+
     Returns: Tensor with softmax applied on that dimension.
     """
-    
+
     input_size = input.size()
-    
+
     trans_input = input.transpose(axis, len(input_size)-1)
     trans_size = trans_input.size()
 
     input_2d = trans_input.contiguous().view(-1, trans_size[-1])
     soft_max_2d = F.softmax(input_2d)
-    
+
     soft_max_nd = soft_max_2d.view(*trans_size)
     return soft_max_nd.transpose(axis, len(input_size)-1)
 
 def invSquare(input, axis=1):
-    """ 
+    """
     Apply inverse square normalization on input at certain axis.
-    
+
     Parammeters:
     ----------
     input: Tensor (N*L or rank>2)
     axis: the axis to apply softmax
-    
+
     Returns: Tensor with softmax applied on that dimension.
     """
-    
+
     input_size = input.size()
-    
+
     trans_input = input.transpose(axis, len(input_size)-1)
     trans_size = trans_input.size()
 
     input_2d = trans_input.contiguous().view(-1, trans_size[-1])
-    
+
     square_2d = input_2d**(-2)
     sum_square_2d = torch.sum(square_2d, 1, keepdim=True)
     square_norm_2d = square_2d/sum_square_2d
@@ -232,7 +232,7 @@ def invSquare(input, axis=1):
 
 def cosine_distance(memory_matrix, cos_keys):
     """
-    compute the cosine similarity between keys to each of the 
+    compute the cosine similarity between keys to each of the
     memory slot.
     Parameters:
     ----------
@@ -242,21 +242,21 @@ def cosine_distance(memory_matrix, cos_keys):
         the keys to query the memory with
     strengths: Tensor (batch_size, number_of_keys, )
         the list of strengths for each lookup key
-    
+
     Returns: Tensor (batch_size, mem_slot, number_of_keys)
         The list of lookup weightings for each provided key
     """
-    
+
     memory_norm = torch.norm(memory_matrix, 2, 2).unsqueeze(2)
     keys_norm   = torch.norm(cos_keys, 2, 1).unsqueeze(2)
-    
+
     normalized_mem = torch.div(memory_matrix, memory_norm.expand_as(memory_matrix) + 1e-8)
     normalized_keys = torch.div(cos_keys, keys_norm.expand_as(cos_keys) + 1e-8)
-    
+
     out =  torch.bmm(normalized_mem, normalized_keys)
-    
+
     #print(normalized_keys)
     #print(out)
     #apply_dict(locals())
-    
+
     return out

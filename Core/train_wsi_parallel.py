@@ -8,8 +8,6 @@ from torch.multiprocessing import Pool
 from torch.autograd import Variable
 from torch.optim import lr_scheduler
 
-from pydaily import filesystem
-
 from .proj_utils.plot_utils import plot_scalar, plot_img, save_images
 from .proj_utils.torch_utils import to_device, LambdaLR
 from .train_utils import adding_grad_noise, load_partial_state_dict
@@ -22,20 +20,19 @@ def train_cls(dataloader, test_dataloader, model_root, mode_name, net, args):
     optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=args.momentum,
                                 nesterov=True, weight_decay=args.weight_decay)
 
-    loss_train_plot   = plot_scalar(name = "loss_cls",  env= mode_name, rate = args.display_freq)
-    model_folder      = os.path.join(model_root, mode_name)
-    filesystem.overwrite_dir(model_folder)
+    loss_train_plot   = plot_scalar(name="loss_cls",  env=mode_name, rate=args.display_freq)
+    model_folder      = os.path.join(model_root, mode_name + str(args.session))
+    if os.path.exists(model_folder) == False:
+        os.makedirs(model_folder)
+
 
     if args.reuse_weights:
-        weightspath = os.path.join(model_folder, 'weights_epoch_{}.pth'.format(args.load_from_epoch))
+        weightspath = os.path.join(model_folder, args.reuse_model_path)
         if os.path.exists(weightspath):
             weights_dict = torch.load(weightspath, map_location=lambda storage, loc: storage)
             print('reload weights from {}'.format(weightspath))
             load_partial_state_dict(net, weights_dict)
-            #net.load_state_dict(weights_dict)
             start_epoch = args.load_from_epoch + 1
-            #if os.path.exists(plot_save_path):
-            #    plot_dict = torch.load(plot_save_path)
         else:
             print('WRANING!!! {} do not exist!!'.format(weightspath))
             start_epoch = 1
@@ -49,6 +46,7 @@ def train_cls(dataloader, test_dataloader, model_root, mode_name, net, args):
     step_cnt = 0 # will be zeroed after a while
     batch_count = 0
     init_flag = True
+    cls_acc = 0.0
 
     for epoc_num in range(start_epoch, args.maxepoch):
         #dataloader.dataset.img_shape = [args.img_size[ridx], args.img_size[ridx]]
@@ -119,7 +117,7 @@ def train_cls(dataloader, test_dataloader, model_root, mode_name, net, args):
                     con_mat = confusion_matrix(total_gt, total_pred)
 
                     _, cls_train  = torch.topk(train_pred, 1, dim=1)
-                    
+
                     # print('last train_pred: ', cls_train.view(-1).cpu().data.numpy().tolist() )
                     # print('last train_gt:   ', im_label.view(-1).cpu().data.numpy().tolist())
                     # print('predciton: ', total_pred )
@@ -130,7 +128,7 @@ def train_cls(dataloader, test_dataloader, model_root, mode_name, net, args):
                     print(con_mat)
 
                     cls_acc = np.trace(con_mat) * 1.0 / np.sum(con_mat)
-                    print("Classification accuracy is: {}".format(cls_acc))
+                    print("Current classification accuracy is: {}".format(cls_acc))
 
                     net.train()
                     plot_img(X=im_data[0][0].data.cpu().numpy(), win='cropped_img', env=mode_name)
@@ -138,15 +136,15 @@ def train_cls(dataloader, test_dataloader, model_root, mode_name, net, args):
                     step_cnt = 0
 
                     loss_train_plot.plot(train_loss_val)
-                    torch.save(net.state_dict(), os.path.join(model_folder, 'weights_tmp.pth') )
-                    # print('finish saving tmp weights at {}'.format(model_folder))
+
 
             batch_count += 1
         lr_scheduler.step()
 
         if epoc_num > 0 and epoc_num % args.save_freq == 0:
-            torch.save(net.state_dict(), os.path.join(model_folder, 'weights_epoch_{}.pth'.format(epoc_num)))
-            print('finish saving weights at {}'.format(model_folder))
+            save_model_name = 'epoch-{}-acc-{:.3f}.pth'.format(str(epoc_num).zfill(3), cls_acc)
+            torch.save(net.state_dict(), os.path.join(model_folder, save_model_name))
+            print('Model saved as {}'.format(save_model_name))
 
         total_time = time.time()-start_timer
         print('it takes {} to finish one epoch.'.format(total_time))
