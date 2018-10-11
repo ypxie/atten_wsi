@@ -11,63 +11,7 @@ import torch.nn.functional as F
 from torch.utils.data.dataset import Dataset
 from .thyroid_config import multi_class_map_dict, class_reverse_map
 from .thyroid_config import folder_map_dict, folder_reverse_map, folder_ratio_map
-
-from ..proj_utils.local_utils import getfolderlist, getfilelist
-
-
-def aggregate_label(label_list):
-    '''
-       label_list:
-    '''
-    num_cell = len(label_list)
-    label_dict = {}
-    unique_lab = np.unique(label_list)
-    for this_key in unique_lab:
-        label_dict[this_key] = []
-    for idx, this_label in  enumerate(label_list):
-        label_dict[this_label].append(idx)
-    return label_dict
-
-
-def get_all_files(rootFolder, inputext = ['.h5'], class_map_dict=None, pre_load=True):
-    '''
-    Given a root folder, this function needs to return 2 lists. imglist and clslist:
-        (img_data, label)
-    '''
-
-    sub_folder_list, sub_folder_name = getfolderlist(rootFolder)
-    file_list, label_list = [], []
-
-    for idx, (this_folder, this_folder_name) in enumerate( zip(sub_folder_list, sub_folder_name) ):
-        filelist, filenames = getfilelist(this_folder, inputext, with_ext=False)
-        this_cls = class_map_dict[this_folder_name]
-
-        for this_file_path, this_file_name in zip(filelist, filenames):
-            if pre_load is True:
-                try:
-                    data = dd.io.load(this_file_path)
-                except Exception as err:
-                    import traceback
-                    traceback.print_tb(err.__traceback__)
-                    print('cannot process data[feat] in {}'.format(this_file_path))
-                    data = None
-                file_list.append(data)
-
-            else:
-                file_list.append(this_file_path)
-            label_list.append(this_cls)
-    return file_list, label_list
-
-
-
-def sample_gumbel(logits, eps=1e-20):
-    #U = torch.rand(logits.size()).cuda()
-    U = logits.new_zeros(logits.size()).uniform_()
-    return -torch.log(-torch.log(U + eps) + eps)
-
-def gumbel_softmax_sample(logits, temperature):
-    y = logits + sample_gumbel(logits)
-    return F.softmax(y / temperature, dim=-1)
+from .wsi_utils import aggregate_label, get_all_files
 
 
 
@@ -122,10 +66,20 @@ class ThyroidDataSet(Dataset):
         new_label =  self.class_map_dict[self.folder_reverse_map[label]]
         return new_label
 
+    def sample_gumbel(self, logits, eps=1e-20):
+        #U = torch.rand(logits.size()).cuda()
+        U = logits.new_zeros(logits.size()).uniform_()
+        return -torch.log(-torch.log(U + eps) + eps)
+
+    def gumbel_softmax_sample(self, logits, temperature):
+        y = logits + self.sample_gumbel(logits)
+        return F.softmax(y / temperature, dim=-1)
 
     def __len__(self):
         return self.img_num
 
+    def __iter__(self):
+        return self
 
     def __getitem__(self, index):
         while True:
@@ -159,7 +113,7 @@ class ThyroidDataSet(Dataset):
                     additoinal_num = 10
                     logits          = torch.from_numpy(logits).float() #.cuda()
                     neg_logits      = logits[self.fixed_num+additoinal_num::, 0] + 1e-5
-                    gumbel_probs    = gumbel_softmax_sample(neg_logits, self.temperature)
+                    gumbel_probs    = self.gumbel_softmax_sample(neg_logits, self.temperature)
                     this_probs_norm = gumbel_probs.cpu().numpy()
 
                     # Use positive samples for selection
@@ -191,48 +145,6 @@ class ThyroidDataSet(Dataset):
                 print("Having problem with index {}".format(index) )
                 index = random.choice(self.indices)
 
-    def __iter__(self):
-        return self
-
-
-def get_indices_balance(label_dict, num_sampling, batch_size, class_ratio_array):
-    '''
-    Parameters:
-    -----------
-        label_dict:   a dictionary of cls:idx
-        num_sampling: the number of chosen class in each run
-        batch_size:   totoal number of samples in each run
-        class_ratio_array: class_ratio_array[8] store prob of class_reverse_label[8]
-    Return:
-    -----------
-        indices of the sample id
-    '''
-
-    indices = []
-    key_list = list(label_dict.keys())
-    prob = class_ratio_array.copy()[0:len(key_list)]
-
-    for idx, this_k in enumerate(key_list):
-        prob[idx] = class_ratio_array[this_k]
-    prob = prob/np.sum(prob)
-
-    true_sampling = min(num_sampling, len(key_list))
-    each_chosen = math.ceil(batch_size/true_sampling)
-
-    chosen_key = np.random.choice(key_list, true_sampling, replace=False, p=prob)
-    for idx, this_key in enumerate(chosen_key):
-        #this_key = chosen_key[idx]
-        this_ind = label_dict[this_key] #idx set of all the img in this classes.
-        this_num = min(each_chosen,  batch_size - each_chosen*idx)
-
-        if this_num <= len(this_ind):
-            this_choice = np.random.choice(this_ind, this_num, replace=False)
-        else:
-            this_choice = np.random.choice(this_ind, this_num, replace=True)
-
-        indices.extend(this_choice)
-
-    return indices
 
 
 class BatchSampler(object):
@@ -246,11 +158,51 @@ class BatchSampler(object):
         self.num_batches = self.data_len // self.batch_size
 
 
+    def get_indices_balance(self, label_dict, num_sampling, batch_size, class_ratio_array):
+        '''
+        Parameters:
+        -----------
+            label_dict:   a dictionary of cls:idx
+            num_sampling: the number of chosen class in each run
+            batch_size:   totoal number of samples in each run
+            class_ratio_array: class_ratio_array[8] store prob of class_reverse_label[8]
+        Return:
+        -----------
+            indices of the sample id
+        '''
+
+        indices = []
+        key_list = list(label_dict.keys())
+        prob = class_ratio_array.copy()[0:len(key_list)]
+
+        for idx, this_k in enumerate(key_list):
+            prob[idx] = class_ratio_array[this_k]
+        prob = prob/np.sum(prob)
+
+        true_sampling = min(num_sampling, len(key_list))
+        each_chosen = math.ceil(batch_size/true_sampling)
+
+        chosen_key = np.random.choice(key_list, true_sampling, replace=False, p=prob)
+        for idx, this_key in enumerate(chosen_key):
+            #this_key = chosen_key[idx]
+            this_ind = label_dict[this_key] #idx set of all the img in this classes.
+            this_num = min(each_chosen,  batch_size - each_chosen*idx)
+
+            if this_num <= len(this_ind):
+                this_choice = np.random.choice(this_ind, this_num, replace=False)
+            else:
+                this_choice = np.random.choice(this_ind, this_num, replace=True)
+
+            indices.extend(this_choice)
+
+        return indices
+
     def __iter__(self):
         for idx in range( self.num_batches):
-            batch = get_indices_balance(self.label_dict, self.num_sampling,
-                                        self.batch_size, self.class_ratio_array)
+            batch = self.get_indices_balance(self.label_dict,
+                self.num_sampling, self.batch_size, self.class_ratio_array)
             yield batch
+
 
     def __len__(self):
         return self.num_batches

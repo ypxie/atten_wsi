@@ -10,23 +10,91 @@ import torch.nn.functional as F
 from .attention import MultiHeadedAttention
 import numpy as np
 
-class BasicConv2d(nn.Module):
 
-    def __init__(self, in_channels, out_channels, use_relu=True, **kwargs):
-        super(BasicConv2d, self).__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)
-        self.bn   = nn.BatchNorm2d(out_channels, eps=0.001)
-        self.use_relu = use_relu
+class MILAtten(nn.Module):
+    """MILAtten layer implementation"""
 
-    def forward(self, x):
-        # change bn after relu
-        x = self.conv(x)
-        if self.use_relu:
-            x = F.relu(x, inplace=True)
+    def __init__(self, dim=128, dl=128, use_self=None):
+        """
+        Args:
+            dim : int
+                Dimension of descriptors
+        """
+        super(MILAtten, self).__init__()
+
+        self.use_self = use_self
+        self.dim = dim
+        self.out_dim = dim
+        self.dl = dl
+
+        if use_self is 'self_atten':
+            self.atten_dim = 256
+            self.f_linear = nn.Linear(self.dim, self.atten_dim)
+            self.mh_atten = MultiHeadedAttention(h=4, d_model=self.atten_dim)
+        elif use_self is 'global':
+            self.atten_dim = self.dim * 2
+
+        self.V = nn.Parameter(torch.Tensor(self.atten_dim, self.dl), requires_grad=True)
+        self.W = nn.Parameter(torch.Tensor(self.dl, 1), requires_grad=True)
+        self.scale=1
+        self.reset_params()
+
+    def reset_params(self):
+        std1 = 1./((self.dl*self.dim)**(1/2))
+        self.V.data.uniform_(-std1, std1)
+
+        std2 = 1./((self.dl)**(1/2))
+        self.W.data.uniform_(-std2, std2)
+
+    def forward(self, x, true_num=None):
+        '''
+        Parameters:
+        -----------
+            x: B x N x D
+            true_num: B
+        Return
+            feat_fusion:
+                Bxfeat_dim
+            soft_assign
+                BxN
+        '''
+        B, num_dis, D = x.size()
+        if true_num is not None:
+            _t_num = true_num.cpu().numpy().tolist()
+            _mask  = get_mask(B, num_dis, _t_num)
         else:
-            x = F.leaky_relu(x, inplace=True)
+            _mask  = np.ones((B, num_dis), dtype=np.int32)
+        device_mask = x.new_tensor(_mask)
 
-        return self.bn(x)
+        if self.use_self is 'self_atten':
+            self_atten_mask = torch.bmm(device_mask.unsqueeze(2), device_mask.unsqueeze(1))
+            atten_x = self.f_linear(x)
+            _atten_feat = self.mh_atten(atten_x, atten_x, atten_x, mask=self_atten_mask) # B x N x D
+        elif self.use_self is 'global':
+            if true_num is not None:
+                x_sum       =  torch.sum(x, dim=1, keepdim=True) # B x 1 x D
+                _num_array  =  true_num.unsqueeze(-1).unsqueeze(-1).expand_as(x_sum)
+                x_mean      =  x_sum/_num_array.float()
+            else:
+                x_mean      =  torch.mean(x, dim=1, keepdim=True) # B x 1 x D
+
+            _atten_feat =  torch.cat( [x_mean.expand_as(x), x] , dim=-1)
+        else:
+            _atten_feat = x
+        feat_ = x
+
+        x_   = torch.tanh(torch.matmul(_atten_feat,  self.V )) # BxNxL used to be torch.tanh
+        dis_ = torch.matmul(x_, self.W).squeeze(-1) # BxN
+        dis_ = dis_/math.sqrt(self.dl)
+
+        # set unwanted value to 0, so it won't affect.
+        dis_.masked_fill_(device_mask==0, -1e20)
+        soft_assign_ = F.softmax(dis_, dim=1) # BxN
+
+        soft_assign = soft_assign_.unsqueeze(-1).expand_as(feat_)  # BxNxD
+        feat_fusion = torch.sum(soft_assign*feat_, 1, keepdim=False) # BxD
+
+        return feat_fusion, soft_assign_
 
 
 class logistWsiNet(nn.Module):
@@ -47,11 +115,9 @@ class logistWsiNet(nn.Module):
         self.conv1    = nn.Sequential(*layers)
 
         if self.use_aux:
-            # self.out_conv = nn.Conv2d(self.atten.out_dim+1, class_num, kernel_size=1, bias=True)
-            self.out_conv = nn.Linear(self.atten.out_dim+1, class_num, bias=True)
+            self.fc = nn.Linear(self.atten.out_dim+1, class_num, bias=True)
         else:
-            # self.out_conv = nn.Conv2d(self.atten.out_dim, class_num, kernel_size=1, bias=True)
-            self.out_conv = nn.Linear(self.atten.out_dim, class_num, bias=True)
+            self.fc = nn.Linear(self.atten.out_dim, class_num, bias=True)
 
         self._loss = 0
 
@@ -69,7 +135,7 @@ class logistWsiNet(nn.Module):
             aux = aux.view(B, 1)
             out = torch.cat([out, aux], dim=1)
 
-        out = self.out_conv(out)
+        out = self.fc(out)
 
         if self.training:
             assert label is not None, "invalid label for training mode"
@@ -105,6 +171,24 @@ def get_weight(preds, label, weight_mat):
 
 
 
+
+class BasicConv2d(nn.Module):
+
+    def __init__(self, in_channels, out_channels, use_relu=True, **kwargs):
+        super(BasicConv2d, self).__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)
+        self.bn   = nn.BatchNorm2d(out_channels, eps=0.001)
+        self.use_relu = use_relu
+
+    def forward(self, x):
+        # change bn after relu
+        x = self.conv(x)
+        if self.use_relu:
+            x = F.relu(x, inplace=True)
+        else:
+            x = F.leaky_relu(x, inplace=True)
+
+        return self.bn(x)
 
 
 class denseWsiNet(nn.Module):
@@ -207,104 +291,3 @@ def get_mask(B, N, true_num=None):
             if this_num < N:
                 dis_[idx, this_num::] = 0
     return dis_
-
-class MILAtten(nn.Module):
-    """MILAtten layer implementation"""
-
-    def __init__(self, dim=128, dl= 128, use_self=None):
-        """
-        Args:
-            dim : int
-                Dimension of descriptors
-        """
-        super(MILAtten, self).__init__()
-
-        self.use_self = use_self
-        self.dim = dim
-        #self.conv = nn.Conv2d(dim, num_clusters, kernel_size=(1, 1), bias=True)
-        #self.centroids = nn.Parameter(torch.rand(num_clusters, dim))
-        self.out_dim = dim
-        self.dl = dl
-        self.atten_dim = self.dim
-
-        if use_self is 'self_atten':
-            self.atten_dim = 256
-            self.f_linear = nn.Linear(self.dim, self.atten_dim)
-            self.mh_atten = MultiHeadedAttention(h=4, d_model=self.atten_dim)
-        elif use_self is 'global':
-            self.atten_dim = self.dim * 2
-
-        self.V = nn.Parameter(torch.Tensor( self.atten_dim, self.dl), requires_grad=True)
-        self.W = nn.Parameter(torch.Tensor(self.dl, 1), requires_grad=True)
-        self.scale=1
-        self.reset_params()
-
-    def reset_params(self):
-        std1 = 1./((self.dl*self.dim)**(1/2))
-        self.V.data.uniform_(-std1, std1)
-
-        std2 = 1./((self.dl)**(1/2))
-        self.W.data.uniform_(-std2, std2)
-
-    def forward(self, x, true_num=None):
-        '''
-        Parameters:
-        -----------
-            x: B x N x D
-            true_num: B
-        Return
-            feat_fusion:
-                Bxfeat_dim
-            soft_assign
-                BxN
-        '''
-        #import pdb; pdb.set_trace()
-        B, num_dis, D = x.size()
-        #import pdb; pdb.set_trace()
-        #_t_num = true_num.cpu().numpy().tolist() if true_num is not None else None
-        if true_num is not None:
-            _t_num = true_num.cpu().numpy().tolist()
-            _mask  = get_mask(B, num_dis, _t_num)
-        else:
-            _mask  = np.ones((B, num_dis), dtype=np.int32)
-
-        device_mask = x.new_tensor(_mask)
-
-        if self.use_self is 'self_atten':
-            self_atten_mask = torch.bmm(device_mask.unsqueeze(2), device_mask.unsqueeze(1))
-            atten_x = self.f_linear(x)
-            _atten_feat = self.mh_atten(atten_x, atten_x, atten_x, mask=self_atten_mask) # B x N x D
-            feat_ = x
-        elif self.use_self is 'global':
-            #import pdb; pdb.set_trace()
-            if true_num is not None:
-                x_sum       =  torch.sum(x, dim=1, keepdim=True) # B x 1 x D
-                _num_array  =  true_num.unsqueeze(-1).unsqueeze(-1).expand_as(x_sum)
-                x_mean      =  x_sum/_num_array.float()
-            else:
-                x_mean      =  torch.mean(x, dim=1, keepdim=True) # B x 1 x D
-
-            _atten_feat =  torch.cat( [x_mean.expand_as(x), x ] , dim=-1  )
-            feat_ = x
-        else:
-            _atten_feat = x
-            feat_ = x
-
-        x_   = torch.tanh( torch.matmul(_atten_feat,  self.V ) ) # BxNxL used to be torch.tanh
-        dis_ = torch.matmul(x_, self.W).squeeze(-1) # BxN
-        dis_ = dis_/math.sqrt(self.dl)
-        # set unwanted value to 0, so it won't affect.
-        dis_.masked_fill(device_mask==0, -1e20)
-
-        # if true_num is not None:
-        #     for idx in range(B):
-        #         this_num = true_num[idx]
-        #         if this_num < num_dis:
-        #             dis_[idx, this_num::] = -1e20
-
-        soft_assign_ = F.softmax(dis_, dim = 1) # BxN
-
-        soft_assign = soft_assign_.unsqueeze(-1).expand_as(feat_)  # BxNxD
-        feat_fusion = torch.sum(soft_assign*feat_, 1, keepdim=False) # BxD
-
-        return feat_fusion, soft_assign_

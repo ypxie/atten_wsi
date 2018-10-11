@@ -10,10 +10,10 @@ from torch.optim import lr_scheduler
 
 from .proj_utils.plot_utils import plot_scalar, plot_img, save_images
 from .proj_utils.torch_utils import to_device, LambdaLR
-from .train_utils import adding_grad_noise, load_partial_state_dict
+from .proj_utils.torch_utils import adding_grad_noise, load_partial_state_dict
 
 
-def train_cls(dataloader, test_dataloader, model_root, mode_name, net, args):
+def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
     net.train()
     frozen_step = getattr(args, 'frozen_step', 0)
     lr = args.lr
@@ -101,27 +101,20 @@ def train_cls(dataloader, test_dataloader, model_root, mode_name, net, args):
                     from sklearn.metrics import confusion_matrix
                     total_pred, total_gt = [], []
 
-                    for test_data, test_aux, test_label, test_num in test_dataloader:
-                        test_data  =  to_device(test_data, net.device_id, volatile=True).float()
-                        test_aux   =  to_device(test_aux, net.device_id, volatile=True).float()
-                        test_num   =  to_device(test_num, net.device_id, volatile=True).long()
+                    for val_data, val_aux, val_label, val_num in val_dataloader:
+                        val_data  =  to_device(val_data, net.device_id, volatile=True).float()
+                        val_aux   =  to_device(val_aux, net.device_id, volatile=True).float()
+                        val_num   =  to_device(val_num, net.device_id, volatile=True).long()
 
-                        test_pred_pro    = net(test_data, test_aux, true_num = test_num).cpu()
-                        _, cls_labels  = torch.topk(test_pred_pro, 1, dim=1)
+                        val_pred_pro    = net(val_data, val_aux, true_num = val_num).cpu()
+                        _, cls_labels  = torch.topk(val_pred_pro, 1, dim=1)
                         cls_labels    =  cls_labels.data.cpu().numpy()[:,0]
 
                         total_pred.extend(cls_labels.tolist()  )
-                        total_gt.extend(test_label.tolist() )
+                        total_gt.extend(val_label.tolist() )
 
                     precision, recall, fscore, support = score(total_gt, total_pred)
                     con_mat = confusion_matrix(total_gt, total_pred)
-
-                    _, cls_train  = torch.topk(train_pred, 1, dim=1)
-
-                    # print('last train_pred: ', cls_train.view(-1).cpu().data.numpy().tolist() )
-                    # print('last train_gt:   ', im_label.view(-1).cpu().data.numpy().tolist())
-                    # print('predciton: ', total_pred )
-                    # print('groundtrt: ', total_gt)
 
                     print(' p:  {}\n r:  {}\n f1: {} \n'.format(precision, recall, fscore))
                     print('confusion matrix: \n')
@@ -137,12 +130,11 @@ def train_cls(dataloader, test_dataloader, model_root, mode_name, net, args):
 
                     loss_train_plot.plot(train_loss_val)
 
-
             batch_count += 1
         lr_scheduler.step()
 
         if epoc_num > 0 and epoc_num % args.save_freq == 0:
-            save_model_name = 'epoch-{}-acc-{:.3f}.pth'.format(str(epoc_num).zfill(3), cls_acc)
+            save_model_name = '{}-epoch-{}-acc-{:.3f}.pth'.format(args.model_name, str(epoc_num).zfill(3), cls_acc)
             torch.save(net.state_dict(), os.path.join(model_folder, save_model_name))
             print('Model saved as {}'.format(save_model_name))
 
