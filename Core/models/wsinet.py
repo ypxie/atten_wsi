@@ -128,7 +128,7 @@ class logistWsiNet(nn.Module):
     def forward(self, x, aux ,label=None, true_num= None):
         B, N, C = x.size()
 
-        vlad, alpha = self.atten(x, true_num)
+        vlad, assignments = self.atten(x, true_num)
         out = self.conv1(vlad)
 
         if self.use_aux:
@@ -147,10 +147,10 @@ class logistWsiNet(nn.Module):
             this_weight_var = self._loss.new_tensor(torch.from_numpy(this_weight))
 
             self._loss = self._loss * this_weight_var
-            return out
+            return out, assignments
         else:
             cls_pred = F.softmax(out, dim=1)
-            return cls_pred
+            return cls_pred, assignments
 
     @property
     def loss(self):

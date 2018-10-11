@@ -21,17 +21,31 @@ def test_cls(dataloader, model_root, mode_name, net, args):
 
     start_timer = time.time()
     total_pred, total_gt = [], []
-    for test_data, test_aux, test_label, test_num in dataloader:
+    for ind, data in enumerate(dataloader):
+        if args.pre_load == True:
+            test_data, test_aux, test_label, test_num = data
+        else:
+            test_data, test_aux, test_label, test_num, gt_bboxes = data
+
         test_data  =  to_device(test_data, net.device_id, volatile=True).float()
         test_aux   =  to_device(test_aux, net.device_id, volatile=True).float()
         test_num   =  to_device(test_num, net.device_id, volatile=True).long()
 
-        test_pred_pro    = net(test_data, test_aux, true_num = test_num).cpu()
+        test_pred_pro, assignments = net(test_data, test_aux, true_num = test_num)
+        # Generate ROI bbox in whole slide image
+        if args.pre_load == False:
+            topk_num = 10
+            top_probs, top_inds = torch.topk(assignments, 10, dim=1)
+            topk_assign = top_inds.cpu().numpy()
+            heat_bboxes = np.zeros((gt_bboxes.shape[0], topk_num, 4))
+            for ind in range(gt_bboxes.shape[0]):
+                heat_bboxes[ind] = np.take(gt_bboxes[ind], topk_assign[ind], axis=0)
+        test_pred_pro = test_pred_pro.cpu()
         _, cls_labels  = torch.topk(test_pred_pro, 1, dim=1)
         cls_labels    =  cls_labels.data.cpu().numpy()[:,0]
 
-        total_pred.extend(cls_labels.tolist()  )
-        total_gt.extend(test_label.tolist() )
+        total_pred.extend(cls_labels.tolist())
+        total_gt.extend(test_label.tolist())
 
     precision, recall, fscore, support = score(total_gt, total_pred)
     con_mat = confusion_matrix(total_gt, total_pred)

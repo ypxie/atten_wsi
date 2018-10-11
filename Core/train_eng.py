@@ -72,7 +72,7 @@ def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
                 im_label = im_label.view(-1, 1)
                 # add noise to input data
 
-                train_pred = net(im_data, aux_data, im_label, true_num=num_data)
+                train_pred, assignments = net(im_data, aux_data, im_label, true_num=num_data)
 
                 vecloss = net.loss
                 loss = torch.mean(vecloss)
@@ -106,7 +106,8 @@ def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
                         val_aux   =  to_device(val_aux, net.device_id, volatile=True).float()
                         val_num   =  to_device(val_num, net.device_id, volatile=True).long()
 
-                        val_pred_pro    = net(val_data, val_aux, true_num = val_num).cpu()
+                        val_pred_pro, assignments = net(val_data, val_aux, true_num = val_num)
+                        val_pred_pro = val_pred_pro.cpu()
                         _, cls_labels  = torch.topk(val_pred_pro, 1, dim=1)
                         cls_labels    =  cls_labels.data.cpu().numpy()[:,0]
 

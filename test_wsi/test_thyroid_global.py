@@ -14,11 +14,12 @@ from Core.test_eng import test_cls
 
 def set_args():
     parser = argparse.ArgumentParser(description = 'WSI diagnois by feature fusion using global attention')
-    parser.add_argument("--model_path",      type=str,   default= "global-epoch-140-acc-1.000.pth")
+    parser.add_argument("--model_path",      type=str,   default= "global-epoch-300-acc-0.892.pth")
     # model setting
     parser.add_argument("--model_name",      type=str,   default="global")
     parser.add_argument("--data_dir",        type=str,   default="../data")
     parser.add_argument("--dataset",         type=str,   default="Thyroid")
+    parser.add_argument("--pre_load",        type=bool,  default=False)
     parser.add_argument("--class_num",       type=int,   default=3)
     parser.add_argument("--input_fea_num",   type=int,   default=2048)
 
@@ -43,7 +44,7 @@ if  __name__ == '__main__':
 
     # prepare data locations
     thyroid_data_root = os.path.join(args.data_dir, args.dataset+"Data")
-    test_dataset = ThyroidDataSet(test_data_root, testing=True, testing_num=128)
+    test_dataset = ThyroidDataSet(test_data_root, testing=True, testing_num=128, pre_load=args.pre_load)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=1,
         num_workers=0, pin_memory=True)
     print(">> START testing")

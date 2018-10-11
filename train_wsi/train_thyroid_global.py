@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from Core.datasets.thyroid_dataset import ThyroidDataSet
 from Core.datasets.thyroid_dataset import BatchSampler
 from Core.models.wsinet  import logistWsiNet
-from Core.train_wsi_parallel import train_cls
+from Core.train_eng import train_cls
 
 
 def set_args():
@@ -58,7 +58,7 @@ if  __name__ == '__main__':
     thyroid_data_root = os.path.join(args.data_dir, args.dataset+"Data")
     train_data_root = os.path.join(thyroid_data_root, "Train")
     # val_data_root = os.path.join(thyroid_data_root, "Val")
-    val_data_root = os.path.join(thyroid_data_root, "Test")    
+    val_data_root = os.path.join(thyroid_data_root, "Test")
     # create dataset
     train_dataset = ThyroidDataSet(train_data_root, testing=False)
     val_dataset = ThyroidDataSet(val_data_root, testing=True, testing_num=128)

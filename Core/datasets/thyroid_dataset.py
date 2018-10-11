@@ -89,6 +89,8 @@ class ThyroidDataSet(Dataset):
                 else:
                     this_data_path = self.file_list[index]
                     data = dd.io.load(this_data_path)
+                    print("File name is: {}".format(os.path.basename(this_data_path)))
+                    gt_bboxes = data['bbox']
 
                 label, logits, feat = data['cls_labels'], data['cls_pred'], data['feat']
                 chosen_num = random.choice(self.chosen_num_list)
@@ -135,7 +137,10 @@ class ThyroidDataSet(Dataset):
                 feat_placeholder[0:true_num] = chosen_feat
                 this_true_label = self.get_true_label(self.label_list[index])
 
-                return feat_placeholder, pos_ratio, this_true_label, true_num
+                if self.pre_load == True:
+                    return feat_placeholder, pos_ratio, this_true_label, true_num
+                else:
+                    return feat_placeholder, pos_ratio, this_true_label, true_num, gt_bboxes
 
             except Exception as err:
                 #print(err)
