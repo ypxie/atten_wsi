@@ -4,24 +4,27 @@ import os, sys
 
 
 folder_ratio_map = {
-    "Benign": 0.4,
-    "Uncertain": 0.3,
-    "Yes": 0.3
+    "0": 0.25,
+    "1": 0.25,
+    "2": 0.25,
+    "3": 0.25,
 }
 
 
 multi_class_map_dict = {
-    "Benign": 0,
-    "Uncertain": 1,
-    "Yes": 2,
+    "0": 0,
+    "1": 1,
+    "2": 2,
+    "3": 3,
 }
 
 
 """
 class_reverse_map = {
-    0: "Benign",
-    1: "Uncertain",
-    2: "Yes",
+    0: "0",
+    1: "1",
+    2: "2",
+    3: "3",
 }
 """
 class_reverse_map = {}
@@ -31,9 +34,10 @@ for k, v in multi_class_map_dict.items():
 
 """
 folder_map_dict = {
-    "Benign": 0,
-    "Uncertain": 1,
-    "Yes": 2,
+    "0": 0,
+    "1": 1,
+    "2": 2,
+    "3": 3,
 }
 """
 folder_map_dict = {}
@@ -43,9 +47,10 @@ for idx, (k, v ) in enumerate(folder_ratio_map.items()):
 
 """
 folder_reverse_map = {
-    0: "Benign",
-    1: "Uncertain",
-    2: "Yes",
+    0: "0",
+    1: "1",
+    2: "2",
+    3: "3",
 }
 """
 folder_reverse_map = {}

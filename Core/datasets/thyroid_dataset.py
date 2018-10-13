@@ -44,9 +44,6 @@ class ThyroidDataSet(Dataset):
         self.label_list  = label_list
 
         summery_label_dict = aggregate_label(label_list)
-        # for k,v in summery_label_dict.items():
-        #     print('The number of ', k, 'is: ', len(v))
-
         # the following line get {1:[1,2,3,4], 2:[23,25], ...}
         self.label_dict   =  summery_label_dict
         self.img_num      =  len(self.file_list)
@@ -147,7 +144,7 @@ class ThyroidDataSet(Dataset):
                 import traceback
                 traceback.print_tb(err.__traceback__)
 
-                print("Having problem with index {}".format(index) )
+                print("Having problem with index {}".format(index))
                 index = random.choice(self.indices)
 
 

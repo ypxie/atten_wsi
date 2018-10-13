@@ -1,4 +1,4 @@
-import os
+import os, shutil
 import cv2
 import torch
 import numpy as np
@@ -8,7 +8,7 @@ from torch.multiprocessing import Pool
 from torch.autograd import Variable
 from torch.optim import lr_scheduler
 
-from .proj_utils.plot_utils import plot_scalar, plot_img, save_images
+# from .proj_utils.plot_utils import plot_scalar, plot_img, save_images
 from .proj_utils.torch_utils import to_device, LambdaLR
 from .proj_utils.torch_utils import adding_grad_noise, load_partial_state_dict
 
@@ -20,11 +20,8 @@ def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
     optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=args.momentum,
                                 nesterov=True, weight_decay=args.weight_decay)
 
-    loss_train_plot   = plot_scalar(name="loss_cls",  env=mode_name, rate=args.display_freq)
+    # loss_train_plot   = plot_scalar(name="loss_cls",  env=mode_name, rate=args.display_freq)
     model_folder      = os.path.join(model_root, mode_name + str(args.session))
-    if os.path.exists(model_folder) == False:
-        os.makedirs(model_folder)
-
 
     if args.reuse_weights:
         weightspath = os.path.join(model_folder, args.reuse_model_path)
@@ -38,6 +35,10 @@ def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
             start_epoch = 1
     else:
         start_epoch = 1
+    if start_epoch == 1:
+        if os.path.exists(model_folder) == True:
+            shutil.rmtree(model_folder)
+        os.makedirs(model_folder)
 
     lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
         lr_lambda=LambdaLR(args.maxepoch, start_epoch, args.decay_epoch).step)
@@ -46,7 +47,7 @@ def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
     step_cnt = 0 # will be zeroed after a while
     batch_count = 0
     init_flag = True
-    cls_acc = 0.0
+    cls_acc, best_acc = 0.0, 0.0
 
     for epoc_num in range(start_epoch, args.maxepoch):
         #dataloader.dataset.img_shape = [args.img_size[ridx], args.img_size[ridx]]
@@ -93,9 +94,10 @@ def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
 
                 if batch_count % args.display_freq == 0:
                     train_loss /= step_cnt
-                    print((' epoch {}/[{}/{}], loss: {}, sample_{}, learning rate: {}'. \
-                            format(epoc_num, batch_idx, len(dataloader)  ,train_loss, num_sample, optimizer.param_groups[0]['lr'])))
-                    print('scale is: ', net.atten.scale)
+                    print((' epoch {}/[{}/{}], loss: {}, sample_{}, learning rate: {:.5f}'. \
+                            format(epoc_num, batch_idx, len(dataloader)  ,train_loss, num_sample, \
+                            optimizer.param_groups[0]['lr'])))
+                    # print('scale is: ', net.atten.scale)
                     net.eval()
                     from sklearn.metrics import precision_recall_fscore_support as score
                     from sklearn.metrics import confusion_matrix
@@ -118,26 +120,27 @@ def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
                     con_mat = confusion_matrix(total_gt, total_pred)
 
                     print(' p:  {}\n r:  {}\n f1: {} \n'.format(precision, recall, fscore))
-                    print('confusion matrix: \n')
+                    print('confusion matrix:')
                     print(con_mat)
 
                     cls_acc = np.trace(con_mat) * 1.0 / np.sum(con_mat)
-                    print("Current classification accuracy is: {}".format(cls_acc))
+                    print("\n Current classification accuracy is: {:.4f}".format(cls_acc))
 
                     net.train()
-                    plot_img(X=im_data[0][0].data.cpu().numpy(), win='cropped_img', env=mode_name)
+                    # plot_img(X=im_data[0][0].data.cpu().numpy(), win='cropped_img', env=mode_name)
                     train_loss = 0
                     step_cnt = 0
 
-                    loss_train_plot.plot(train_loss_val)
+                    # loss_train_plot.plot(train_loss_val)
 
             batch_count += 1
         lr_scheduler.step()
 
-        if epoc_num > 0 and epoc_num % args.save_freq == 0:
+        if epoc_num > 0 and epoc_num % args.save_freq == 0 and cls_acc >= best_acc:
             save_model_name = '{}-epoch-{}-acc-{:.3f}.pth'.format(args.model_name, str(epoc_num).zfill(3), cls_acc)
             torch.save(net.state_dict(), os.path.join(model_folder, save_model_name))
             print('Model saved as {}'.format(save_model_name))
+            best_acc = cls_acc
 
         total_time = time.time()-start_timer
         print('it takes {} to finish one epoch.'.format(total_time))

@@ -14,12 +14,12 @@ from Core.test_eng import test_cls
 
 def set_args():
     parser = argparse.ArgumentParser(description = 'WSI diagnois by feature fusion using global attention')
-    parser.add_argument("--model_path",      type=str,   default= "global-epoch-300-acc-0.892.pth")
+    parser.add_argument("--model_path",      type=str,   default="900/global-epoch-289.pth")
     # model setting
     parser.add_argument("--model_name",      type=str,   default="global")
     parser.add_argument("--data_dir",        type=str,   default="../data")
     parser.add_argument("--dataset",         type=str,   default="Thyroid")
-    parser.add_argument("--pre_load",        type=bool,  default=False)
+    parser.add_argument("--pre_load",        type=bool,  default=True)
     parser.add_argument("--class_num",       type=int,   default=3)
     parser.add_argument("--input_fea_num",   type=int,   default=2048)
 
@@ -27,7 +27,7 @@ def set_args():
     return args
 
 if  __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"]="4"
+    os.environ["CUDA_VISIBLE_DEVICES"]="2"
     args = set_args()
 
     # Network and GPU setting

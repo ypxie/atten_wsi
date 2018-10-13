@@ -54,7 +54,7 @@ def test_cls(dataloader, model_root, mode_name, net, args):
     print('confusion matrix: \n')
     print(con_mat)
     cls_acc = np.trace(con_mat) * 1.0 / np.sum(con_mat)
-    print("Final classification accuracy is: {}".format(cls_acc))
+    print("Final classification accuracy is: {:.3f}".format(cls_acc))
 
     total_time = time.time()-start_timer
     print("It takes {} to finish testing on {} slides.".format(total_time, len(dataloader)))
