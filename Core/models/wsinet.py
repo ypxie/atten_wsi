@@ -98,8 +98,7 @@ class MILAtten(nn.Module):
 
 
 class logistWsiNet(nn.Module):
-    def __init__(self, class_num, in_channels, num_clusters=5,
-                 use_self=None, use_aux=False):
+    def __init__(self, class_num, in_channels, use_self=None, use_aux=False):
         super(logistWsiNet, self).__init__()
 
         self.in_channels = in_channels
@@ -121,9 +120,19 @@ class logistWsiNet(nn.Module):
 
         self._loss = 0
 
-        self.weight_mat = np.array([[0.1, 0.3, 2.0],
-                                    [0.7, 0.1, 1.0],
-                                    [3.0, 0.3, 0.1]])
+        # self.weight_mat = np.array([[0.1, 0.3, 2.0],
+        #                             [0.7, 0.1, 1.0],
+        #                             [3.0, 0.3, 0.1]])
+
+        self.weight_mat = np.array([[0.1, 1.0, 1.0, 1.0],
+                                    [1.0, 0.1, 1.0, 1.0],
+                                    [1.0, 1.0, 0.1, 1.0],
+                                    [1.0, 1.0, 1.0, 0.1]])
+
+        # self.weight_mat = np.array([[0.1, 0.6, 1.0, 0.3],
+        #                             [1.0, 0.1, 1.0, 0.3],
+        #                             [1.0, 1.0, 0.1, 0.3],
+        #                             [1.0, 1.0, 1.0, 0.1]])
 
     def forward(self, x, aux ,label=None, true_num= None):
         B, N, C = x.size()
