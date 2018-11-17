@@ -112,7 +112,7 @@ def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
             batch_count += 1
         lr_scheduler.step()
 
-        if epoc_num > 100 and epoc_num % args.save_freq == 0 and cls_acc >= best_acc:
+        if epoc_num > 200 and epoc_num % args.save_freq == 0 and cls_acc >= best_acc:
             save_model_name = '{}-epoch-{}-acc-{:.3f}.pth'.format(args.model_name, str(epoc_num).zfill(3), cls_acc)
             torch.save(net.state_dict(), os.path.join(model_folder, save_model_name))
             print('Model saved as {}'.format(save_model_name))

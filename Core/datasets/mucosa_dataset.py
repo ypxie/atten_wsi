@@ -17,7 +17,7 @@ from .wsi_utils import aggregate_label, get_all_files
 
 
 class MucosaDataSet(Dataset):
-    def __init__(self, data_dir, testing=False, testing_num=42, pre_load=True):
+    def __init__(self, data_dir, testing=False, testing_num=40, pre_load=True):
         self.data_dir = data_dir
         self.testing = testing
         self.pre_load = pre_load
@@ -55,9 +55,9 @@ class MucosaDataSet(Dataset):
         self.indices = list(range(self.img_num))
         self.temperature = 0.5
         ## doubt about the following two
-        self.fixed_num = 15
-        self.chosen_num_list = list(range(42, 60))
-        self.max_num = 164 if not self.testing else self.testing_num
+        self.fixed_num = 10
+        self.chosen_num_list = list(range(testing_num, testing_num+10))
+        self.max_num = 60 if not self.testing else self.testing_num
 
 
     def get_true_label(self, label):
@@ -123,13 +123,25 @@ class MucosaDataSet(Dataset):
                     this_probs_norm = this_probs_norm / np.sum(this_probs_norm)
 
                     chosen_num = random.choice(self.chosen_num_list)
-                    # combine fixed number + random chosen number
-                    fixed_chosen_ind = total_ind[0:self.fixed_num+additoinal_num]
-                    fixed_chosen_ind = np.random.choice(total_ind[0:self.fixed_num+additoinal_num], self.fixed_num)
-                    random_chosen_ind = np.random.choice(total_ind[self.fixed_num+additoinal_num::],
-                                                         chosen_num-self.fixed_num,
-                                                         replace=False, p=this_probs_norm)
-                    chosen_total_ind_ = np.concatenate([fixed_chosen_ind, random_chosen_ind], 0 )
+
+                    if len(label) > chosen_num + 5:
+                        # combine fixed number + random chosen number
+                        fixed_chosen_ind = total_ind[0:self.fixed_num+additoinal_num]
+                        fixed_chosen_ind = np.random.choice(total_ind[0:self.fixed_num+additoinal_num], self.fixed_num)
+                        random_chosen_ind = np.random.choice(total_ind[self.fixed_num+additoinal_num::],
+                                                             chosen_num-self.fixed_num,
+                                                             replace=False, p=this_probs_norm)
+                        chosen_total_ind_ = np.concatenate([fixed_chosen_ind, random_chosen_ind], 0)
+                    elif len(label) > self.testing_num:
+                        ttl_num = chosen_num if len(label) > chosen_num else len(label)
+                        fixed_chosen_ind = total_ind[0:self.fixed_num+additoinal_num]
+                        fixed_chosen_ind = np.random.choice(total_ind[0:self.fixed_num+additoinal_num], self.fixed_num)
+                        random_chosen_ind = np.random.choice(total_ind[self.fixed_num+additoinal_num::],
+                                                             ttl_num-self.fixed_num-5,
+                                                             replace=False, p=this_probs_norm)
+                        chosen_total_ind_ = np.concatenate([fixed_chosen_ind, random_chosen_ind], 0)
+                    else:
+                        chosen_total_ind_ = total_ind[len(label)-5]
 
                 chosen_total_ind_ = chosen_total_ind_.reshape((chosen_total_ind_.shape[0],))
                 chosen_feat = feat[chosen_total_ind_]
@@ -146,7 +158,6 @@ class MucosaDataSet(Dataset):
                 #print(err)
                 import traceback
                 traceback.print_tb(err.__traceback__)
-
                 print("Having problem with index {}".format(index))
                 index = random.choice(self.indices)
 

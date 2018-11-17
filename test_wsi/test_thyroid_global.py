@@ -16,7 +16,7 @@ from Core.test_eng import test_cls
 
 def set_args():
     parser = argparse.ArgumentParser(description = 'WSI diagnois by feature fusion using global attention')
-    parser.add_argument("--model_path",      type=str,   default="900/global-epoch-289.pth")
+    parser.add_argument("--model_path",      type=str,   default="global-epoch-146-acc-0.880.pth")
     # model setting
     parser.add_argument("--model_name",      type=str,   default="global")
     parser.add_argument("--data_dir",        type=str,   default="../data")
@@ -29,9 +29,8 @@ def set_args():
     return args
 
 if  __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+    # os.environ["CUDA_VISIBLE_DEVICES"]="1"
     args = set_args()
-
     # Network and GPU setting
     net = logistWsiNet(class_num=args.class_num, in_channels=args.input_fea_num, use_self=args.model_name)
     cuda_avail = torch.cuda.is_available()

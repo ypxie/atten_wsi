@@ -38,15 +38,18 @@ def set_args():
 
 
 if  __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+    # os.environ["CUDA_VISIBLE_DEVICES"]="1"
+    torch.manual_seed(1234)
     args = set_args()
 
     # Network and GPU setting
     net = logistWsiNet(class_num=args.class_num, in_channels=args.input_fea_num, use_self=args.model_name)
     cuda_avail = torch.cuda.is_available()
     if cuda_avail :
+        torch.cuda.manual_seed(1234)
         net.cuda()
         import torch.backends.cudnn as cudnn
+        torch.backends.cudnn.deterministic=True
         cudnn.benchmark = True
 
     # prepare data locations
@@ -56,12 +59,12 @@ if  __name__ == '__main__':
     val_data_root = os.path.join(mucosa_data_root, "Test")
     # create dataset
     train_dataset = MucosaDataSet(train_data_root, testing=False, pre_load=args.pre_load)
-    val_dataset = MucosaDataSet(val_data_root, testing=True, testing_num=42, pre_load=args.pre_load)
+    val_dataset = MucosaDataSet(val_data_root, testing=True, testing_num=40, pre_load=args.pre_load)
     # create dataloader
     batch_sampler  = BatchSampler(label_dict=train_dataset.label_dict, batch_size=args.batch_size,
         data_len=len(train_dataset), class_ratio_array=train_dataset.class_ratio_array, num_sampling=8)
     train_dataloader = DataLoader(dataset=train_dataset, batch_sampler=batch_sampler,
-        num_workers=4, pin_memory=True)
+        num_workers=0, pin_memory=True)
     val_dataloader = DataLoader(dataset=val_dataset, batch_size=1,
         num_workers=0, pin_memory=True)
 

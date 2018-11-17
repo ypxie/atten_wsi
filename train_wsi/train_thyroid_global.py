@@ -39,7 +39,7 @@ def set_args():
 
 
 if  __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"]="1"
+    # os.environ["CUDA_VISIBLE_DEVICES"]="1"
     torch.manual_seed(1234)
     args = set_args()
 

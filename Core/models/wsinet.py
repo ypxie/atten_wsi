@@ -48,11 +48,11 @@ class MILAtten(nn.Module):
         self.out_dim = dim
         self.dl = dl
 
-        if use_self is 'self_atten':
+        if use_self == 'self_atten':
             self.atten_dim = 256
             self.f_linear = nn.Linear(self.dim, self.atten_dim)
             self.mh_atten = MultiHeadedAttention(h=4, d_model=self.atten_dim)
-        elif use_self is 'global':
+        elif use_self == 'global':
             self.atten_dim = self.dim * 2
 
         self.V = nn.Parameter(torch.Tensor(self.atten_dim, self.dl), requires_grad=True)
@@ -87,11 +87,11 @@ class MILAtten(nn.Module):
             _mask  = np.ones((B, num_dis), dtype=np.int32)
         device_mask = x.new_tensor(_mask)
 
-        if self.use_self is 'self_atten':
+        if self.use_self == 'self_atten':
             self_atten_mask = torch.bmm(device_mask.unsqueeze(2), device_mask.unsqueeze(1))
             atten_x = self.f_linear(x)
             _atten_feat = self.mh_atten(atten_x, atten_x, atten_x, mask=self_atten_mask) # B x N x D
-        elif self.use_self is 'global':
+        elif self.use_self == 'global':
             if true_num is not None:
                 x_sum       =  torch.sum(x, dim=1, keepdim=True) # B x 1 x D
                 _num_array  =  true_num.unsqueeze(-1).unsqueeze(-1).expand_as(x_sum)

@@ -14,7 +14,7 @@ from Core.test_eng import test_cls
 
 def set_args():
     parser = argparse.ArgumentParser(description = 'WSI diagnois by feature fusion using global attention')
-    parser.add_argument("--model_path",      type=str,   default="796/global-epoch-006.pth")
+    parser.add_argument("--model_path",      type=str,   default="global-epoch-006.pth")
     # model setting
     parser.add_argument("--model_name",      type=str,   default="global")
     parser.add_argument("--data_dir",        type=str,   default="../data")
@@ -27,21 +27,24 @@ def set_args():
     return args
 
 if  __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+    # os.environ["CUDA_VISIBLE_DEVICES"]="1"
+    torch.manual_seed(1234)
     args = set_args()
 
     # Network and GPU setting
     net = logistWsiNet(class_num=args.class_num, in_channels=args.input_fea_num, use_self=args.model_name)
     cuda_avail = torch.cuda.is_available()
     if cuda_avail :
+        torch.cuda.manual_seed(1234)
         net.cuda()
         import torch.backends.cudnn as cudnn
+        torch.backends.cudnn.deterministic=True
         cudnn.benchmark = True
 
     # prepare data locations
     mucosa_data_root = os.path.join(args.data_dir, args.dataset+"Data")
     test_data_root = os.path.join(mucosa_data_root, "Test")
-    test_dataset = MucosaDataSet(test_data_root, testing=True, testing_num=42, pre_load=args.pre_load)
+    test_dataset = MucosaDataSet(test_data_root, testing=True, testing_num=40, pre_load=args.pre_load)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=1,
         num_workers=0, pin_memory=True)
     print(">> START testing")
