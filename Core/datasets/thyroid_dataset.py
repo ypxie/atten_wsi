@@ -14,7 +14,6 @@ from .thyroid_config import folder_map_dict, folder_reverse_map, folder_ratio_ma
 from .wsi_utils import aggregate_label, get_all_files
 
 
-
 class ThyroidDataSet(Dataset):
     def __init__(self, data_dir, testing=False, testing_num=128, pre_load=True):
         self.data_dir = data_dir
@@ -88,20 +87,14 @@ class ThyroidDataSet(Dataset):
                     data = dd.io.load(this_data_path)
                     print("File name is: {}".format(os.path.basename(this_data_path)))
                     gt_bboxes = data['bbox']
-
                 label, logits, feat = data['cls_labels'], data['cls_pred'], data['feat']
-                chosen_num = random.choice(self.chosen_num_list)
-
-                label_dist = np.argmax(label, axis=1)
-                count_pos = label.shape[0] - np.count_nonzero(label_dist == 0)
-                pos_ratio = count_pos * 1.0 / label.shape[0]
+                # label_dist = np.argmax(label, axis=1)
+                # count_pos = label.shape[0] - np.count_nonzero(label_dist == 0)
+                # pos_ratio = count_pos * 1.0 / label.shape[0]
 
                 feat = np.squeeze(feat)
-                #mix_feat = np.concatenate( [feat, logits], axis=1)
-                mix_feat = feat
-
                 total_ind  = np.array(range(0, len(label)))
-                feat_placeholder = np.zeros((self.max_num, mix_feat.shape[1]), dtype=np.float32)
+                feat_placeholder = np.zeros((self.max_num, feat.shape[1]), dtype=np.float32)
 
                 if self.testing:
                     if len(label) > self.testing_num:
@@ -109,35 +102,33 @@ class ThyroidDataSet(Dataset):
                     else:
                         chosen_total_ind_ = total_ind
                 else:
+                    chosen_num = random.choice(self.chosen_num_list)
                     additoinal_num = 10
-                    logits          = torch.from_numpy(logits).float() #.cuda()
+                    logits          = torch.from_numpy(logits).float()
                     neg_logits      = logits[self.fixed_num+additoinal_num::, 0] + 1e-5
                     gumbel_probs    = self.gumbel_softmax_sample(neg_logits, self.temperature)
                     this_probs_norm = gumbel_probs.cpu().numpy()
-
                     # Use positive samples for selection
                     this_probs_norm = 1.0 - this_probs_norm
                     this_probs_norm = this_probs_norm / np.sum(this_probs_norm)
-
                     # combine fixed number + random chosen number
                     fixed_chosen_ind = total_ind[0:self.fixed_num+additoinal_num]
                     fixed_chosen_ind = np.random.choice(total_ind[0:self.fixed_num+additoinal_num], self.fixed_num)
                     random_chosen_ind = np.random.choice(total_ind[self.fixed_num+additoinal_num::],
                                                          chosen_num-self.fixed_num,
                                                          replace=False, p=this_probs_norm)
-
                     chosen_total_ind_ = np.concatenate([fixed_chosen_ind, random_chosen_ind], 0 )
 
                 chosen_total_ind_ = chosen_total_ind_.reshape((chosen_total_ind_.shape[0],))
-                chosen_feat = mix_feat[chosen_total_ind_]
+                chosen_feat = feat[chosen_total_ind_]
                 true_num = chosen_feat.shape[0]
                 feat_placeholder[0:true_num] = chosen_feat
                 this_true_label = self.get_true_label(self.label_list[index])
 
                 if self.pre_load == True:
-                    return feat_placeholder, pos_ratio, this_true_label, true_num
+                    return feat_placeholder, this_true_label, true_num
                 else:
-                    return feat_placeholder, pos_ratio, this_true_label, true_num, gt_bboxes
+                    return feat_placeholder, this_true_label, true_num, gt_bboxes
 
             except Exception as err:
                 #print(err)

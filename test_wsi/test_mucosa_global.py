@@ -27,7 +27,7 @@ def set_args():
     return args
 
 if  __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"]="4"
+    os.environ["CUDA_VISIBLE_DEVICES"]="0"
     args = set_args()
 
     # Network and GPU setting

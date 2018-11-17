@@ -7,6 +7,8 @@ sys.path.insert(0, PRJ_PATH)
 import argparse
 import torch
 from torch.utils.data import DataLoader
+
+
 from Core.datasets.thyroid_dataset import ThyroidDataSet
 from Core.models.wsinet  import logistWsiNet
 from Core.test_eng import test_cls
@@ -27,7 +29,7 @@ def set_args():
     return args
 
 if  __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"]="1"
+    os.environ["CUDA_VISIBLE_DEVICES"]="0"
     args = set_args()
 
     # Network and GPU setting

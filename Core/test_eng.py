@@ -23,16 +23,14 @@ def test_cls(dataloader, model_root, mode_name, net, args):
     total_pred, total_gt = [], []
     for ind, data in enumerate(dataloader):
         if args.pre_load == True:
-            test_data, test_aux, test_label, test_num = data
+            test_data, test_label, test_num = data
         else:
-            test_data, test_aux, test_label, test_num, gt_bboxes = data
+            test_data, test_label, test_num, gt_bboxes = data
 
-        import pdb; pdb.set_trace()
         test_data  =  to_device(test_data, net.device_id, volatile=True).float()
-        test_aux   =  to_device(test_aux, net.device_id, volatile=True).float()
         test_num   =  to_device(test_num, net.device_id, volatile=True).long()
 
-        test_pred_pro, assignments = net(test_data, test_aux, true_num = test_num)
+        test_pred_pro, assignments = net(test_data, true_num = test_num)
         # Generate ROI bbox in whole slide image
         if args.pre_load == False:
             topk_num = 10

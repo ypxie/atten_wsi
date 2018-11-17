@@ -1,6 +1,5 @@
 # Files
 
-
 # Folder
 /data
 
@@ -10,18 +9,7 @@
 *py~
 *.pth
 __pycache__
-HDGAN/__pycache__
-Evaluation/inception_score/inception_finetuned_models
-Evaluation/inception_score/inception/__pycache__
-HDGan/proj_utils/__pycache__
-HDGan/neuralDist/__pycache__
-HDGan/models/__pycache__
-HDGan/fuel/__pycache__
-HDGan/__pycache__
-Models_local/*
-Data_link
-Results/birds
-Results/coco
+
 *.swp
 .vscode
 *~
@@ -34,9 +22,6 @@ temp/*
 .ipython*
 */.ipynb*
 */.ipynb_checkpoints/*
-inception-score/inception_finetuned_models/*
-inception-score/results/*
-demo/text_encoder/*
+
 .remote-sync.json
 test.py
-__deprecated/*

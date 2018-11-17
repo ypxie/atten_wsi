@@ -10,7 +10,27 @@ import torch.nn.functional as F
 import numpy as np
 
 
-# from .attention import MultiHeadedAttention
+@jit(nopython=True)
+def get_mask(B, N, true_num=None):
+    '''
+    Parameters:
+    ------------
+        B@int: batch size
+        N@int: length of N
+        true_num: np array of int, of shape (B,)
+    Returns:
+    ------------
+        mask: of type np.bool, of shape (B, N). 1 indicates valid, 0 invalid.
+    '''
+    dis_ = np.ones((B, N), dtype=np.int32)
+
+    if true_num is not None:
+        for idx in range(B):
+            this_num = true_num[idx]
+            if this_num < N:
+                dis_[idx, this_num::] = 0
+    return dis_
+
 
 class MILAtten(nn.Module):
     """MILAtten layer implementation"""
@@ -99,26 +119,20 @@ class MILAtten(nn.Module):
 
 
 class logistWsiNet(nn.Module):
-    def __init__(self, class_num, in_channels, use_self=None, use_aux=False):
+    def __init__(self, class_num, in_channels, use_self=None):
         super(logistWsiNet, self).__init__()
 
         self.in_channels = in_channels
         self.use_self = use_self
-        self.use_aux = use_aux
 
         self.register_buffer('device_id', torch.IntTensor(1))
-        self.atten = MILAtten(dim=in_channels,  dl=64, use_self=self.use_self)
+        self.atten = MILAtten(dim=in_channels, dl=64, use_self=self.use_self)
 
         layers = [
             nn.Dropout2d(0.5),
          ]
         self.conv1    = nn.Sequential(*layers)
-
-        if self.use_aux:
-            self.fc = nn.Linear(self.atten.out_dim+1, class_num, bias=True)
-        else:
-            self.fc = nn.Linear(self.atten.out_dim, class_num, bias=True)
-
+        self.fc = nn.Linear(self.atten.out_dim, class_num, bias=True)
         self._loss = 0
 
         # self.weight_mat = np.array([[0.1, 0.3, 2.0],
@@ -135,16 +149,11 @@ class logistWsiNet(nn.Module):
                                     [1.0, 0.6, 0.1, 0.3],
                                     [1.0, 1.0, 1.0, 0.1]])
 
-    def forward(self, x, aux ,label=None, true_num= None):
+    def forward(self, x, label=None, true_num= None):
         B, N, C = x.size()
 
         vlad, assignments = self.atten(x, true_num)
         out = self.conv1(vlad)
-
-        if self.use_aux:
-            aux = aux.view(B, 1)
-            out = torch.cat([out, aux], dim=1)
-
         out = self.fc(out)
 
         if self.training:
@@ -178,125 +187,3 @@ def get_weight(preds, label, weight_mat):
         weight_vec[i] = weight_mat[gt][pred]
 
     return weight_vec
-
-
-
-# class BasicConv2d(nn.Module):
-#
-#     def __init__(self, in_channels, out_channels, use_relu=True, **kwargs):
-#         super(BasicConv2d, self).__init__()
-#         self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)
-#         self.bn   = nn.BatchNorm2d(out_channels, eps=0.001)
-#         self.use_relu = use_relu
-#
-#     def forward(self, x):
-#         # change bn after relu
-#         x = self.conv(x)
-#         if self.use_relu:
-#             x = F.relu(x, inplace=True)
-#         else:
-#             x = F.leaky_relu(x, inplace=True)
-#
-#         return self.bn(x)
-#
-#
-# class denseWsiNet(nn.Module):
-#     # input must be 299x299
-#
-#     def __init__(self, class_num=2, in_channels=2, num_clusters=5,
-#                  multi_head=False, use_self=False , use_aux=False):
-#         super(denseWsiNet, self).__init__()
-#
-#         self.in_channels = in_channels
-#         self.use_self = use_self
-#         self.use_aux = use_aux
-#         self.register_buffer('device_id', torch.IntTensor(1))
-#         #if multi_head:
-#         #    self.atten   = multHeadMILAtten(dim=in_channels, nhead = 4, dm = 32, dl = 32)
-#         #else:
-#         self.atten   = MILAtten(dim=in_channels,  dl = 64, use_self=use_self)
-#
-#         self.conv1   =  BasicConv2d(self.atten.out_dim, 128, kernel_size=1, use_relu=False)
-#         self.conv2   =  BasicConv2d(128, 64, kernel_size=1, use_relu=False)
-#         self.conv3   =  BasicConv2d(192, 64, kernel_size=1, use_relu=False)
-#         self.conv4   =  BasicConv2d(256, 64, kernel_size=1, use_relu=False)
-#         #self.conv5   =  BasicConv2d(224, 32, kernel_size=1, use_relu=False)
-#         #self.conv6   =  BasicConv2d(256+5, 32, kernel_size=1, use_relu=False)
-#         if self.use_aux is True:
-#             self.out_conv = nn.Conv2d(320+1, class_num, kernel_size=1, bias=True)
-#         else:
-#             self.out_conv = nn.Conv2d(320, class_num, kernel_size=1, bias=True)
-#         self._loss = 0
-#
-#     def forward(self, x, aux ,label=None, true_num= None):
-#         #import pdb; pdb.set_trace()
-#         B, N, C = x.size()[0:3]
-#         aux = aux.view(B, 1,1, 1)
-#         vlad, alpha = self.atten(x, true_num)
-#         vlad = vlad.unsqueeze(-1).unsqueeze(-1)
-#
-#         conv1 = self.conv1(vlad)
-#         cout1_dense = torch.cat([conv1], 1)
-#
-#         conv2 = self.conv2(cout1_dense)
-#         cout2_dense = torch.cat([conv1, conv2], 1)
-#         cout2_dense = F.dropout2d(cout2_dense, p=0.1, training=self.training)
-#
-#         conv3 = self.conv3(cout2_dense)
-#         cout3_dense = torch.cat([conv1, conv2, conv3], 1)
-#
-#         conv4 = self.conv4(cout3_dense)
-#
-#         #import pdb; pdb.set_trace()
-#         if self.use_aux:
-#             cout4_dense = torch.cat([aux, conv1, conv2, conv3, conv4], 1)
-#         else:
-#             cout4_dense = torch.cat([conv1, conv2, conv3, conv4], 1)
-#         cout4_dense = F.dropout2d(cout4_dense, p=0.1, training=self.training)
-#
-#         #conv5 = self.conv5(cout4_dense)
-#         #cout5_dense = torch.cat([aux, conv1, conv2, conv3, conv4, conv5], 1)
-#
-#         out = self.out_conv(cout4_dense)
-#         out = out.squeeze(-1).squeeze(-1)
-#
-#         if self.training:
-#             tensor_ = torch.tensor((0.2, 0.8), dtype=torch.float32)
-#             weights = out.new_tensor(tensor_)
-#
-#             assert label is not None, "invalid label for training mode"
-#             self._loss = F.nll_loss(F.log_softmax(out, dim=1), label.view(-1),
-#                                     weight=weights, reduction='none')
-#             self._loss += nn.MultiMarginLoss(weight=weights,
-#                           reduction='none')(out, label.view(-1))
-#
-#             return out
-#         else:
-#             cls_pred       = F.softmax(out, dim=1)
-#             return cls_pred
-#
-#     @property
-#     def loss(self):
-#         return self._loss
-#
-# @jit(nopython=True)
-# def get_mask(B, N, true_num=None):
-#     '''
-#     Parameters:
-#     ------------
-#         B@int: batch size
-#         N@int: length of N
-#         true_num: np array of int, of shape (B,)
-#     Returns:
-#     ------------
-#         mask: of type np.bool, of shape (B, N). 1 indicates valid, 0 invalid.
-#
-#     '''
-#     dis_ = np.ones((B, N), dtype=np.int32)
-#
-#     if true_num is not None:
-#         for idx in range(B):
-#             this_num = true_num[idx]
-#             if this_num < N:
-#                 dis_[idx, this_num::] = 0
-#     return dis_
