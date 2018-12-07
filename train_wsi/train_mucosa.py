@@ -26,6 +26,7 @@ def set_args():
     parser.add_argument("--save_freq",       type=int,   default=1,       help="how frequent to save the model")
     parser.add_argument("--session",         type=int,   default=0,       help="training session")
     # model setting
+    parser.add_argument("--patch_mix",       type=str,   default="att")
     parser.add_argument("--fea_mix",         type=str,   default="global")
     parser.add_argument("--data_dir",        type=str,   default="../data")
     parser.add_argument("--dataset",         type=str,   default="Mucosa")
@@ -44,7 +45,7 @@ if  __name__ == '__main__':
     args = set_args()
 
     # Network and GPU setting
-    net = logistWsiNet(class_num=args.class_num, in_channels=args.input_fea_num,
+    net = logistWsiNet(class_num=args.class_num, in_channels=args.input_fea_num, patch_mix=args.patch_mix,
                        fea_mix=args.fea_mix, num_mlp_layer = args.num_mlp_layer,
                        use_w_loss=args.use_w_loss, dataset=args.dataset)
     cuda_avail = torch.cuda.is_available()

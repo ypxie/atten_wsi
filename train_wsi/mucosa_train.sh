@@ -2,16 +2,19 @@
 
 CUDA_VISIBLE_DEVICES=7 \
 python train_mucosa.py \
-    --fea_mix "self" \
+    --patch_mix "att" \
+    --fea_mix "global" \
     --dataset "Mucosa" \
     --pre_load True \
-    --num_mlp_layer 2 \
+    --num_mlp_layer 1 \
     --use_w_loss False \
     --maxepoch 300 \
     --session 1
 
 
-# use_w_loss:False num_mlp_layer:1 session: 0
-# use_w_loss:False num_mlp_layer:2 session: 1
-# use_w_loss:True  num_mlp_layer:1 session: 2
-# use_w_loss:True  num_mlp_layer:2 session: 3
+# Pooling mode: 0
+# Attention mechanism
+# use_w_loss:False num_mlp_layer:1 session: 1
+# use_w_loss:False num_mlp_layer:2 session: 2
+# use_w_loss:True  num_mlp_layer:1 session: 3
+# use_w_loss:True  num_mlp_layer:2 session: 4

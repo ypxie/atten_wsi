@@ -2,16 +2,18 @@
 
 CUDA_VISIBLE_DEVICES=7 \
 python test_mucosa.py \
-    --fea_mix "self" \
+    --patch_mix "att" \
+    --fea_mix "global" \
     --dataset "Mucosa" \
-    --num_mlp_layer 2 \
+    --num_mlp_layer 1 \
     --use_w_loss False \
-    --model_path "NW2/self-epoch-255-acc-0.759.pth"
+    --model_path "global/NW1/global-epoch-021-acc-0.778.pth"
 
 CUDA_VISIBLE_DEVICES=7 \
 python test_mucosa.py \
-    --fea_mix "self" \
+    --patch_mix "att" \
+    --fea_mix "global" \
     --dataset "Mucosa" \
-    --num_mlp_layer 2 \
+    --num_mlp_layer 1 \
     --use_w_loss False \
-    --model_path "NW2/self-epoch-256-acc-0.759.pth"
+    --model_path "global/NW1/global-epoch-022-acc-0.778.pth"

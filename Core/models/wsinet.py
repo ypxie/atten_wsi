@@ -132,12 +132,24 @@ class MILAtten(nn.Module):
         return feat_fusion, soft_assign_
 
 
+def batch_fea_pooling(feas, fea_num):
+    batch_size = len(fea_num)
+    assignments = torch.cuda.FloatTensor(batch_size, feas.shape[1]).fill_(0)
+    vlad = torch.cuda.FloatTensor(batch_size, feas.shape[2]).fill_(0)
+    for ip in range(batch_size):
+        patch_num = fea_num[ip]
+        assignments[ip][:patch_num].fill_(1.0/patch_num.item())
+        vlad[ip] = torch.mean(feas[ip][:patch_num], dim=0)
+
+    return vlad, assignments
+
 
 class logistWsiNet(nn.Module):
-    def __init__(self, class_num, in_channels, fea_mix="global", num_mlp_layer=2,
+    def __init__(self, class_num, in_channels, patch_mix="att", fea_mix="global", num_mlp_layer=2,
                  use_w_loss=True, dataset="Thyroid"):
         super(logistWsiNet, self).__init__()
 
+        self.patch_mix = patch_mix
         self.in_channels = in_channels
         self.fea_mix = fea_mix
         self.num_mlp_layer = num_mlp_layer
@@ -163,9 +175,13 @@ class logistWsiNet(nn.Module):
     def forward(self, x, label=None, true_num= None):
         B, N, C = x.size()
 
-        vlad, assignments = self.atten(x, true_num)
-
-        import pdb; pdb.set_trace()
+        if self.patch_mix == "att":
+            vlad, assignments = self.atten(x, true_num)
+        elif self.patch_mix == "pool":
+            vlad, assignments = batch_fea_pooling(x, true_num)
+        else:
+            print("Unknow batch mix mode")
+            raise
 
         if self.num_mlp_layer == 1:
             out = F.dropout(vlad, training=self.training)

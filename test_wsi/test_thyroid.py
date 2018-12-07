@@ -18,6 +18,7 @@ def set_args():
     parser = argparse.ArgumentParser(description = 'WSI diagnois by feature fusion using global attention')
     parser.add_argument("--model_path",      type=str,   default="")
     # model setting
+    parser.add_argument("--patch_mix",       type=str,   default="att")
     parser.add_argument("--fea_mix",         type=str,   default="global")
     parser.add_argument("--data_dir",        type=str,   default="../data")
     parser.add_argument("--dataset",         type=str,   default="Thyroid")
@@ -34,7 +35,7 @@ if  __name__ == '__main__':
     torch.manual_seed(1234)
     args = set_args()
     # Network and GPU setting
-    net = logistWsiNet(class_num=args.class_num, in_channels=args.input_fea_num,
+    net = logistWsiNet(class_num=args.class_num, in_channels=args.input_fea_num, patch_mix=args.patch_mix,
                        fea_mix=args.fea_mix, num_mlp_layer = args.num_mlp_layer,
                        use_w_loss=args.use_w_loss, dataset=args.dataset)
 
@@ -53,8 +54,7 @@ if  __name__ == '__main__':
     # prepare data locations
     thyroid_data_root = os.path.join(args.data_dir, args.dataset+"Data")
     test_dataset = ThyroidDataSet(test_data_root, testing=True, testing_num=128, pre_load=args.pre_load)
-    test_dataloader = DataLoader(dataset=test_dataset, batch_size=1,
-        num_workers=0, pin_memory=True)
+    test_dataloader = DataLoader(dataset=test_dataset, batch_size=1, num_workers=0, pin_memory=True)
     print(">> START testing")
     model_root = os.path.join(args.data_dir, "Models", args.dataset)
     test_cls(test_dataloader, model_root, net, args)
