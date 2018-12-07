@@ -42,12 +42,6 @@ def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
                 pass
             else:
                 _batch_data, _gt_classes, _true_num = batch_data, gt_classes, true_num
-                # frozen_step = getattr(args, 'frozen_step', 0)
-                # if batch_count > frozen_step and init_flag:
-                #     for p in net.parameters():
-                #         p.requires_grad = True  # to resume computation
-                #     init_flag = False
-                #     print('Set the training back to normal')
                 im_data   = to_device(_batch_data, net.device_id).float()
                 im_label  = to_device(_gt_classes, net.device_id, requires_grad=False).long()
                 num_data  = to_device(_true_num, net.device_id, requires_grad=False).long()
@@ -69,7 +63,7 @@ def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
                 optimizer.zero_grad()
                 loss.backward()
 
-                adding_grad_noise(net, 1, time_step=max(batch_count, epoc_num))
+                # adding_grad_noise(net, 1, time_step=max(batch_count, epoc_num))
                 optimizer.step()
                 step_cnt += 1
 
@@ -113,7 +107,7 @@ def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
         lr_scheduler.step()
 
         if epoc_num > 200 and epoc_num % args.save_freq == 0 and cls_acc >= best_acc:
-            save_model_name = '{}-epoch-{}-acc-{:.3f}.pth'.format(args.model_name, str(epoc_num).zfill(3), cls_acc)
+            save_model_name = '{}-epoch-{}-acc-{:.3f}.pth'.format(args.fea_mix, str(epoc_num).zfill(3), cls_acc)
             torch.save(net.state_dict(), os.path.join(model_folder, save_model_name))
             print('Model saved as {}'.format(save_model_name))
             best_acc = cls_acc

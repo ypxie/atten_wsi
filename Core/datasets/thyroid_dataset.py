@@ -43,7 +43,6 @@ class ThyroidDataSet(Dataset):
         self.label_list  = label_list
 
         summery_label_dict = aggregate_label(label_list)
-        # the following line get {1:[1,2,3,4], 2:[23,25], ...}
         self.label_dict   =  summery_label_dict
         self.img_num      =  len(self.file_list)
 
@@ -52,7 +51,6 @@ class ThyroidDataSet(Dataset):
         self.start = 0
         self.indices = list(range(self.img_num))
         self.temperature = 0.5
-        ## doubt about the following two
         self.fixed_num = 20
         self.chosen_num_list = list(range(128, 164))
         self.max_num = 164 if not self.testing else self.testing_num
@@ -137,7 +135,6 @@ class ThyroidDataSet(Dataset):
 
                 print("Having problem with index {}".format(index))
                 index = random.choice(self.indices)
-
 
 
 class BatchSampler(object):

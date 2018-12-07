@@ -10,9 +10,9 @@ from sklearn.metrics import confusion_matrix
 from .proj_utils.torch_utils import to_device, load_partial_state_dict
 
 
-def test_cls(dataloader, model_root, mode_name, net, args):
+def test_cls(dataloader, model_root, net, args):
     net.eval()
-    model_path = os.path.join(model_root, "BestModel", args.model_path)
+    model_path = os.path.join(model_root, "BestModel", args.fea_mix, args.model_path)
     assert os.path.exists(model_path), "Given model doesnot exist"
     print("Loaded model is {}".format(args.model_path))
 

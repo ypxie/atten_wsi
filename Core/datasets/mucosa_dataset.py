@@ -45,7 +45,6 @@ class MucosaDataSet(Dataset):
         self.label_list  = label_list
 
         summery_label_dict = aggregate_label(label_list)
-        # the following line get {1:[1,2,3,4], 2:[23,25], ...}
         self.label_dict   =  summery_label_dict
         self.img_num      =  len(self.file_list)
 
@@ -55,9 +54,9 @@ class MucosaDataSet(Dataset):
         self.indices = list(range(self.img_num))
         self.temperature = 0.5
         ## doubt about the following two
-        self.fixed_num = 10
+        self.fixed_num = 25
         self.chosen_num_list = list(range(testing_num, testing_num+10))
-        self.max_num = 60 if not self.testing else self.testing_num
+        self.max_num = 50 if not self.testing else self.testing_num
 
 
     def get_true_label(self, label):
@@ -93,10 +92,6 @@ class MucosaDataSet(Dataset):
                 label = np.asarray(data['cls_labels'])
                 logits = np.asarray(data['cls_pred'])
                 feat = np.asarray(data['feat'])
-
-                # label_dist = np.argmax(label, axis=1)
-                # count_pos = label.shape[0] - np.count_nonzero(label_dist == 0)
-                # pos_ratio = count_pos * 1.0 / label.shape[0]
 
                 feat = np.squeeze(feat)
                 total_ind  = np.array(range(0, len(label)))
@@ -141,7 +136,7 @@ class MucosaDataSet(Dataset):
                                                              replace=False, p=this_probs_norm)
                         chosen_total_ind_ = np.concatenate([fixed_chosen_ind, random_chosen_ind], 0)
                     else:
-                        chosen_total_ind_ = total_ind[len(label)-5]
+                        chosen_total_ind_ = total_ind
 
                 chosen_total_ind_ = chosen_total_ind_.reshape((chosen_total_ind_.shape[0],))
                 chosen_feat = feat[chosen_total_ind_]
@@ -160,6 +155,7 @@ class MucosaDataSet(Dataset):
                 traceback.print_tb(err.__traceback__)
                 print("Having problem with index {}".format(index))
                 index = random.choice(self.indices)
+
 
 
 
