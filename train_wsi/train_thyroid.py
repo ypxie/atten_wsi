@@ -28,16 +28,19 @@ def set_args():
     parser.add_argument("--save_freq",       type=int,   default=1,       help="how frequent to save the model")
     parser.add_argument("--session",         type=int,   default=0,       help="training session")
     # model setting
-    parser.add_argument("--patch_mix",       type=str,   default="att")
-    parser.add_argument("--fea_mix",         type=str,   default="global")
-    parser.add_argument("--recur_steps",     type=int,   default=5)
-    parser.add_argument("--data_dir",        type=str,   default="../data")
-    parser.add_argument("--dataset",         type=str,   default="Thyroid")
-    parser.add_argument("--num_mlp_layer",   type=int,   default=1)
-    parser.add_argument("--use_w_loss",      type=bool,  default=False)
-    parser.add_argument("--pre_load",        type=bool,  default=True)
     parser.add_argument("--class_num",       type=int,   default=3)
     parser.add_argument("--input_fea_num",   type=int,   default=2048)
+    parser.add_argument("--data_dir",        type=str,   default="../data")
+    parser.add_argument("--dataset",         type=str,   default="Thyroid")
+
+    parser.add_argument("--patch_mix",       type=str,   default="pool")
+    parser.add_argument("--fea_mix",         type=str,   default="self")
+    parser.add_argument("--recur_steps",     type=int,   default=1)
+    parser.add_argument("--num_mlp_layer",   type=int,   default=2)
+    parser.add_argument("--use_w_loss",      type=bool,  default=True)
+    parser.add_argument("--pre_load",        type=bool,  default=False)
+
+
 
     parser.add_argument("--seed",            type=int,   default=1234)
     args = parser.parse_args()

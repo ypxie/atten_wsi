@@ -14,6 +14,7 @@ from torch.optim import lr_scheduler
 from .proj_utils.torch_utils import LambdaLR
 
 def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
+    import pdb; pdb.set_trace()
     net.train()
     model_folder = os.path.join(model_root, mode_name + str(args.session))
     if os.path.exists(model_folder) == True:
@@ -29,7 +30,7 @@ def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
 
     train_loss, step_cnt, batch_count  = 0.0, 0, 0
     cls_acc, best_acc = 0.0, 0.0
-    for epoc_num in np.arange(start_epoch, args.maxepoch):
+    for epoc_num in np.arange(start_epoch, args.maxepoch+1):
         for batch_idx, (batch_data, gt_classes, true_num) in enumerate(dataloader):
             batch_data, gt_classes, true_num = batch_data, gt_classes, true_num
             im_data   = batch_data.cuda().float()
@@ -92,4 +93,4 @@ def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
 
         if (epoc_num + 1) == args.maxepoch:
             save_model_name = '{}-epoch-{}-acc-{:.3f}.pth'.format(args.fea_mix, str(epoc_num).zfill(3), cls_acc)
-            torch.save(net.state_dict(), os.path.join(model_folder, save_model_name))            
+            torch.save(net.state_dict(), os.path.join(model_folder, save_model_name))

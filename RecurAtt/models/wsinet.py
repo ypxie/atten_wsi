@@ -31,7 +31,6 @@ def get_mask(B, N, true_num=None):
     return dis_
 
 
-
 @jit(nopython=True)
 def get_weight(preds, label, weight_mat):
     # out B X 1
@@ -128,16 +127,9 @@ class MILAtten(nn.Module):
 
             feat_fusion = torch.squeeze(x_atten, dim=1)
             return feat_fusion, soft_assign_
-
         elif self.fea_mix == "self":
-            _atten_feat = x
-        else:
-            print("Unknow fusion modality")
-            raise
-
-        feat_ = x
-        if fea_mix != 'global':
-            x_   = torch.tanh(torch.matmul(_atten_feat,  self.V)) # BxNxL used to be torch.tanh
+            feat_ = x
+            x_   = torch.tanh(torch.matmul(x,  self.V)) # BxNxL used to be torch.tanh
             dis_ = torch.matmul(x_, self.W).squeeze(-1) # BxN
             dis_ = dis_/np.sqrt(self.dl)
 
@@ -149,6 +141,8 @@ class MILAtten(nn.Module):
             feat_fusion = torch.sum(soft_assign*feat_, 1, keepdim=False) # BxD
 
             return feat_fusion, soft_assign_
+        else:
+            raise NotImplementedError()
 
 
 def batch_fea_pooling(feas, fea_num):
@@ -175,7 +169,6 @@ class WsiNet(nn.Module):
         self.num_mlp_layer = num_mlp_layer
         self.use_w_loss = use_w_loss
         self.dataset = dataset
-
 
         # self.register_buffer('device_id', torch.IntTensor(1))
         self.atten = MILAtten(dim=in_channels, dl=64, fea_mix=self.fea_mix)
@@ -219,7 +212,6 @@ class WsiNet(nn.Module):
             assert label is not None, "invalid label for training mode"
             self._loss = F.nll_loss(F.log_softmax(out, dim=1), label.view(-1),
                                      reduction='none') # B x 1
-
             if self.use_w_loss == True:
                 if self.dataset == "Thyroid":
                     weight_mat = self.weight_thyroid_mat
@@ -233,7 +225,6 @@ class WsiNet(nn.Module):
                 this_weight = get_weight(out_numpy, label_numpy, weight_mat)  # B x 1
                 this_weight_var = self._loss.new_tensor(torch.from_numpy(this_weight))
                 self._loss = self._loss * this_weight_var
-
             return out, assignments
         else:
             cls_pred = F.softmax(out, dim=1)
