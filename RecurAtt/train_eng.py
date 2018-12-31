@@ -14,9 +14,12 @@ from torch.optim import lr_scheduler
 from .proj_utils.torch_utils import LambdaLR
 
 def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
-    import pdb; pdb.set_trace()
     net.train()
-    model_folder = os.path.join(model_root, mode_name + str(args.session))
+    if args.use_w_loss:
+        model_save_dir = mode_name + str(args.session) + "loss"
+    else:
+        model_save_dir = mode_name + str(args.session)
+    model_folder = os.path.join(model_root, model_save_dir)
     if os.path.exists(model_folder) == True:
         shutil.rmtree(model_folder)
     os.makedirs(model_folder)
