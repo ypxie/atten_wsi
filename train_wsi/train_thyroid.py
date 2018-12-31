@@ -9,15 +9,15 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from Core.datasets.thyroid_dataset import ThyroidDataSet
-from Core.datasets.thyroid_dataset import BatchSampler
+from RecurAtt.datasets.thyroid_dataset import ThyroidDataSet
+from RecurAtt.datasets.thyroid_dataset import BatchSampler
 
-from Core.models.wsinet  import WsiNet
-from Core.train_eng import train_cls
+from RecurAtt.models.wsinet  import WsiNet
+from RecurAtt.train_eng import train_cls
 
 
 def set_args():
-    parser = argparse.ArgumentParser(description = 'WSI diagnois using feature fusion using recurrent attention')
+    parser = argparse.ArgumentParser(description = 'WSI diagnois')
     parser.add_argument("--batch_size",      type=int,   default=32,      help="batch size")
     parser.add_argument("--lr",              type=float, default=1.0e-2,  help="learning rate (default: 0.01)")
     parser.add_argument("--momentum",        type=float, default=0.9,     help="SGD momentum (default: 0.5)")
@@ -62,8 +62,10 @@ if  __name__ == '__main__':
     # Dataset preparetion
     thyroid_data_root = os.path.join(args.data_dir, args.dataset+"Data")
     train_data_root = os.path.join(thyroid_data_root, "Train")
-    # val_data_root = os.path.join(thyroid_data_root, "Val")
-    val_data_root = os.path.join(thyroid_data_root, "Test")
+    val_data_root = os.path.join(thyroid_data_root, "Val")
+
+    # val_data_root = os.path.join(thyroid_data_root, "Test")
+
     # create dataset
     train_dataset = ThyroidDataSet(train_data_root, testing=False, pre_load=args.pre_load)
     val_dataset = ThyroidDataSet(val_data_root, testing=True, testing_num=128, pre_load=args.pre_load)

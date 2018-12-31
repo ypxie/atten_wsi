@@ -1,8 +1,8 @@
+# -*- coding: utf-8 -*-
 
+import os, sys
 import numpy as np
-import time
-import sys
-import six
+import time, six
 
 
 def get_from_module(identifier, module_params, module_name,

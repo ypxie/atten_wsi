@@ -27,6 +27,7 @@ class ThyroidDataSet(Dataset):
         self.folder_map_dict = folder_map_dict
         self.folder_reverse_map = folder_reverse_map
         self.folder_ratio_map = folder_ratio_map
+        self.cur_filename = None
 
         # calculate class_ratio_array
         class_ratio_array = [None]*len(self.folder_map_dict.keys())
@@ -84,7 +85,8 @@ class ThyroidDataSet(Dataset):
                 else:
                     this_data_path = self.file_list[index]
                     data = dd.io.load(this_data_path)
-                    print("File name is: {}".format(os.path.basename(this_data_path)))
+                    self.cur_filename = os.path.basename(this_data_path)
+                    # print("File name is: {}".format(self.cur_filename))
                     gt_bboxes = data['bbox']
 
                 label, logits, feat = data['cls_labels'], data['cls_pred'], data['feat']

@@ -4,6 +4,7 @@ import os, sys
 import numpy as np
 import torch
 import time
+import deepdish as dd
 from sklearn.metrics import precision_recall_fscore_support as score
 from sklearn.metrics import confusion_matrix
 
@@ -29,18 +30,28 @@ def test_cls(dataloader, model_root, net, args):
 
         test_data = test_data.cuda().float()
         test_num = test_num.cuda().long()
-        # test_data  =  to_device(test_data, net.device_id, volatile=True).float()
-        # test_num   =  to_device(test_num, net.device_id, volatile=True).long()
 
         test_pred_pro, assignments = net(test_data, true_num = test_num)
         # Generate ROI bbox in whole slide image
         if args.pre_load == False:
-            topk_num = 10
-            top_probs, top_inds = torch.topk(assignments, 10, dim=1)
+            topk_num = test_num.item()
+            top_probs, top_inds = torch.topk(assignments, topk_num, dim=1)
             topk_assign = top_inds.cpu().numpy()
             heat_bboxes = np.zeros((gt_bboxes.shape[0], topk_num, 4))
-            for ind in range(gt_bboxes.shape[0]):
+            for ind in np.arange(gt_bboxes.shape[0]):
                 heat_bboxes[ind] = np.take(gt_bboxes[ind], topk_assign[ind], axis=0)
+            # BBoxes
+            probs, att_vals = [], assignments[0][topk_assign]
+            for ind in np.arange(topk_num):
+                probs.append(att_vals[ind].item())
+            att_dict = {
+                "probs": probs,
+                "bboxes": heat_bboxes[0]
+            }
+            cur_filename = os.path.splitext(dataloader.dataset.cur_filename)[0]
+            save_path = os.path.join(os.path.dirname(model_path), cur_filename + ".h5")
+            dd.io.save(save_path, att_dict)
+
         test_pred_pro = test_pred_pro.cpu()
         _, cls_labels  = torch.topk(test_pred_pro, 1, dim=1)
         cls_labels    =  cls_labels.data.cpu().numpy()[:,0]

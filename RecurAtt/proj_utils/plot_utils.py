@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+
+import os, sys
+
 try:
     from visdom import Visdom
 except:
