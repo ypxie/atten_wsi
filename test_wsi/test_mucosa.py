@@ -8,7 +8,7 @@ import argparse
 import torch
 from torch.utils.data import DataLoader
 from Core.datasets.mucosa_dataset import MucosaDataSet
-from Core.models.wsinet  import logistWsiNet
+from Core.models.wsinet  import WsiNet
 from Core.test_eng import test_cls
 
 
@@ -34,9 +34,9 @@ if  __name__ == '__main__':
     args = set_args()
 
     # Network and GPU setting
-    net = logistWsiNet(class_num=args.class_num, in_channels=args.input_fea_num, patch_mix=args.patch_mix,
-                       fea_mix=args.fea_mix, num_mlp_layer = args.num_mlp_layer,
-                       use_w_loss=args.use_w_loss, dataset=args.dataset)
+    net = WsiNet(class_num=args.class_num, in_channels=args.input_fea_num, patch_mix=args.patch_mix,
+                 fea_mix=args.fea_mix, num_mlp_layer = args.num_mlp_layer,
+                 use_w_loss=args.use_w_loss, dataset=args.dataset)
 
     cuda_avail = torch.cuda.is_available()
     if cuda_avail:

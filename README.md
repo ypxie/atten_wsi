@@ -1,1 +1,1 @@
-# Fusion WSI using Attention
+# WSI Patch Feature Fusion using Recurrent Attention

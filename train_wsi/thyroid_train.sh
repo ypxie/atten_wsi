@@ -1,19 +1,13 @@
 #!/bin/bash
 
-CUDA_VISIBLE_DEVICES=2 \
+CUDA_VISIBLE_DEVICES=3 \
 python train_thyroid.py \
-    --patch_mix "pool" \
+    --patch_mix "att" \
     --fea_mix "global" \
     --dataset "Thyroid" \
     --use_w_loss False \
     --num_mlp_layer 1 \
     --pre_load True \
-    --maxepoch 300 \
-    --session 0
-
-# Pooling mode: 0
-# Attention mechanism
-# use_w_loss:False num_mlp_layer:1 session: 1
-# use_w_loss:False num_mlp_layer:2 session: 2
-# use_w_loss:True  num_mlp_layer:1 session: 3
-# use_w_loss:True  num_mlp_layer:2 session: 4
+    --recur_steps 6 \
+    --maxepoch 500 \
+    --session 6

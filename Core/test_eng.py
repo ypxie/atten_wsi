@@ -7,7 +7,7 @@ import time
 from sklearn.metrics import precision_recall_fscore_support as score
 from sklearn.metrics import confusion_matrix
 
-from .proj_utils.torch_utils import to_device, load_partial_state_dict
+from .proj_utils.torch_utils import load_partial_state_dict
 
 
 def test_cls(dataloader, model_root, net, args):
@@ -27,8 +27,10 @@ def test_cls(dataloader, model_root, net, args):
         else:
             test_data, test_label, test_num, gt_bboxes = data
 
-        test_data  =  to_device(test_data, net.device_id, volatile=True).float()
-        test_num   =  to_device(test_num, net.device_id, volatile=True).long()
+        test_data = test_data.cuda().float()
+        test_num = test_num.cuda().long()
+        # test_data  =  to_device(test_data, net.device_id, volatile=True).float()
+        # test_num   =  to_device(test_num, net.device_id, volatile=True).long()
 
         test_pred_pro, assignments = net(test_data, true_num = test_num)
         # Generate ROI bbox in whole slide image

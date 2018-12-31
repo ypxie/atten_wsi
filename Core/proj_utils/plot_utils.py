@@ -11,6 +11,7 @@ from scipy.misc import imsave
 from .local_utils import imshow, writeImg, normalize_img
 _port = 8899
 
+
 def display_loss(steps, values, plot=None, name='default', legend= None, port=_port):
     if plot is None:
         plot = Visdom(port=port)
@@ -41,6 +42,7 @@ def display_loss(steps, values, plot=None, name='default', legend= None, port=_p
             opts=dict(title=win, legend=legend),
             env=name
         )
+
 
 class plot_scalar(object):
     def __init__(self, name='default', env='main', rate= 1, handler=None, port = _port):
@@ -166,7 +168,7 @@ def display_timeseries(strumodel, BatchData, BatchLabel, plot=None, name='defaul
     #       opts=dict(title = name + '_diff_ratio'), env = name)
 
 def save_images(X, save_path=None, save=True, dim_ordering='tf'):
-    # X: B*C*H*W or list of B*C*H*W 
+    # X: B*C*H*W or list of B*C*H*W
     if type(X) is list:
         return save_images_list(X, save_path, save, dim_ordering)
     else:

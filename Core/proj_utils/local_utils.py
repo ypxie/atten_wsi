@@ -19,6 +19,7 @@ import cv2
 from numba import jit, autojit
 
 
+
 def get(identifier):
     return get_from_module(identifier, globals(), 'local_utils')
 
@@ -143,7 +144,6 @@ def normalize_img(X):
     X = (X - min_)/ (max_ - min_ + 1e-9)
     X = X*255
     return X.astype(np.uint8)
-
 
 
 def imread(imgfile):

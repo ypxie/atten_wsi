@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data.dataset import Dataset
+
 from .thyroid_config import multi_class_map_dict, class_reverse_map
 from .thyroid_config import folder_map_dict, folder_reverse_map, folder_ratio_map
 from .wsi_utils import aggregate_label, get_all_files
@@ -85,11 +86,8 @@ class ThyroidDataSet(Dataset):
                     data = dd.io.load(this_data_path)
                     print("File name is: {}".format(os.path.basename(this_data_path)))
                     gt_bboxes = data['bbox']
-                label, logits, feat = data['cls_labels'], data['cls_pred'], data['feat']
-                # label_dist = np.argmax(label, axis=1)
-                # count_pos = label.shape[0] - np.count_nonzero(label_dist == 0)
-                # pos_ratio = count_pos * 1.0 / label.shape[0]
 
+                label, logits, feat = data['cls_labels'], data['cls_pred'], data['feat']
                 feat = np.squeeze(feat)
                 total_ind  = np.array(range(0, len(label)))
                 feat_placeholder = np.zeros((self.max_num, feat.shape[1]), dtype=np.float32)
@@ -101,6 +99,8 @@ class ThyroidDataSet(Dataset):
                         chosen_total_ind_ = total_ind
                 else:
                     chosen_num = random.choice(self.chosen_num_list)
+                    chosen_num = min(chosen_num, int(0.9 * len(label)))
+
                     additoinal_num = 10
                     logits          = torch.from_numpy(logits).float()
                     neg_logits      = logits[self.fixed_num+additoinal_num::, 0] + 1e-5
@@ -112,9 +112,11 @@ class ThyroidDataSet(Dataset):
                     # combine fixed number + random chosen number
                     fixed_chosen_ind = total_ind[0:self.fixed_num+additoinal_num]
                     fixed_chosen_ind = np.random.choice(total_ind[0:self.fixed_num+additoinal_num], self.fixed_num)
+
                     random_chosen_ind = np.random.choice(total_ind[self.fixed_num+additoinal_num::],
                                                          chosen_num-self.fixed_num,
                                                          replace=False, p=this_probs_norm)
+
                     chosen_total_ind_ = np.concatenate([fixed_chosen_ind, random_chosen_ind], 0 )
 
                 chosen_total_ind_ = chosen_total_ind_.reshape((chosen_total_ind_.shape[0],))

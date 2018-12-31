@@ -27,16 +27,6 @@ def load_partial_state_dict(model, state_dict):
                         name, own_state[name].size(), param.size()))
     # print ('>> load partial state dict: {} initialized'.format(len(state_dict)))
 
-
-def adding_grad_noise(model, eta, time_step):
-    for p in model.parameters():
-        sigma = eta/time_step**0.55
-        this_grad = p.grad
-
-        noise = sigma*Variable(torch.randn_like(this_grad))
-        this_grad += noise
-        
-
 class LambdaLR():
     def __init__(self, n_epochs, offset, decay_start_epoch):
         assert ((n_epochs - decay_start_epoch) > 0), "Decay must start before the training session ends!"
@@ -112,6 +102,16 @@ def to_variable(x, requires_grad=True,  var=True, volatile=False):
         else:
             x = Variable(x, requires_grad=requires_grad)
     return x
+
+
+def adding_grad_noise(model, eta, time_step):
+    for p in model.parameters():
+        sigma = eta/time_step**0.55
+        this_grad = p.grad
+
+        noise = sigma*Variable(torch.randn_like(this_grad))
+        this_grad += noise
+
 
 def to_device(src, ref, var = True, volatile = False, requires_grad=True):
     requires_grad = requires_grad and (not volatile)

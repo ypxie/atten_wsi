@@ -19,9 +19,5 @@ temp/*
 .cache
 # developer environments
 .idea
-.ipython*
-*/.ipynb*
-*/.ipynb_checkpoints/*
 
 .remote-sync.json
-test.py

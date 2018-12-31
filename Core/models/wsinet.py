@@ -2,12 +2,11 @@
 
 import os, sys
 
-import torch, math
-from numba import jit
-import torch.nn as nn
-from torch.nn import init
-import torch.nn.functional as F
 import numpy as np
+from numba import jit
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 
 @jit(nopython=True)
@@ -46,7 +45,6 @@ def get_weight(preds, label, weight_mat):
     return weight_vec
 
 
-
 class MILAtten(nn.Module):
     """MILAtten layer implementation"""
 
@@ -83,7 +81,8 @@ class MILAtten(nn.Module):
         std2 = 1./((self.dl)**(1/2))
         self.W.data.uniform_(-std2, std2)
 
-    def forward(self, x, true_num=None):
+
+    def forward(self, x, true_num=None, recur_steps=1):
         '''
         Parameters:
         -----------
@@ -110,26 +109,46 @@ class MILAtten(nn.Module):
                 x_mean      =  x_sum/_num_array.float()
             else:
                 x_mean      =  torch.mean(x, dim=1, keepdim=True) # B x 1 x D
-            _atten_feat =  torch.cat( [x_mean.expand_as(x), x] , dim=-1)
+
+            feat_ = x
+
+            x_atten = x_mean # initialized as x_mean
+            for step in range(recur_steps):
+                _atten_feat =  torch.cat( [x_atten.expand_as(x), x] , dim=-1)
+                x_   = torch.tanh(torch.matmul(_atten_feat,  self.V )) # BxNxL used to be torch.tanh
+                dis_ = torch.matmul(x_, self.W).squeeze(-1) # BxN
+                dis_ = dis_/np.sqrt(self.dl)
+
+                # set unwanted value to 0, so it won't affect.
+                dis_.masked_fill_(device_mask==0, -1e20)
+                soft_assign_ = F.softmax(dis_, dim=1) # BxN
+
+                soft_assign = soft_assign_.unsqueeze(-1).expand_as(feat_)  # BxNxD
+                x_atten = torch.sum(soft_assign*feat_, 1, keepdim=True) # Bx1XD
+
+            feat_fusion = torch.squeeze(x_atten, dim=1)
+            return feat_fusion, soft_assign_
+
         elif self.fea_mix == "self":
             _atten_feat = x
         else:
             print("Unknow fusion modality")
             raise
+
         feat_ = x
+        if fea_mix != 'global':
+            x_   = torch.tanh(torch.matmul(_atten_feat,  self.V)) # BxNxL used to be torch.tanh
+            dis_ = torch.matmul(x_, self.W).squeeze(-1) # BxN
+            dis_ = dis_/np.sqrt(self.dl)
 
-        x_   = torch.tanh(torch.matmul(_atten_feat,  self.V )) # BxNxL used to be torch.tanh
-        dis_ = torch.matmul(x_, self.W).squeeze(-1) # BxN
-        dis_ = dis_/math.sqrt(self.dl)
+            # set unwanted value to 0, so it won't affect.
+            dis_.masked_fill_(device_mask==0, -1e20)
+            soft_assign_ = F.softmax(dis_, dim=1) # BxN
 
-        # set unwanted value to 0, so it won't affect.
-        dis_.masked_fill_(device_mask==0, -1e20)
-        soft_assign_ = F.softmax(dis_, dim=1) # BxN
+            soft_assign = soft_assign_.unsqueeze(-1).expand_as(feat_)  # BxNxD
+            feat_fusion = torch.sum(soft_assign*feat_, 1, keepdim=False) # BxD
 
-        soft_assign = soft_assign_.unsqueeze(-1).expand_as(feat_)  # BxNxD
-        feat_fusion = torch.sum(soft_assign*feat_, 1, keepdim=False) # BxD
-
-        return feat_fusion, soft_assign_
+            return feat_fusion, soft_assign_
 
 
 def batch_fea_pooling(feas, fea_num):
@@ -144,55 +163,57 @@ def batch_fea_pooling(feas, fea_num):
     return vlad, assignments
 
 
-class logistWsiNet(nn.Module):
-    def __init__(self, class_num, in_channels, patch_mix="att", fea_mix="global", num_mlp_layer=2,
-                 use_w_loss=True, dataset="Thyroid"):
-        super(logistWsiNet, self).__init__()
+class WsiNet(nn.Module):
+    def __init__(self, class_num, in_channels, patch_mix="att", fea_mix="global", recur_steps=4,
+                 num_mlp_layer=1, use_w_loss=False, dataset="Thyroid"):
+        super(WsiNet, self).__init__()
 
         self.patch_mix = patch_mix
         self.in_channels = in_channels
         self.fea_mix = fea_mix
+        self.recur_steps = recur_steps
         self.num_mlp_layer = num_mlp_layer
         self.use_w_loss = use_w_loss
         self.dataset = dataset
 
-        self.register_buffer('device_id', torch.IntTensor(1))
+
+        # self.register_buffer('device_id', torch.IntTensor(1))
         self.atten = MILAtten(dim=in_channels, dl=64, fea_mix=self.fea_mix)
         self.fc = nn.Linear(in_features=self.atten.out_dim, out_features=class_num)
-        self.fc1 = nn.Linear(in_features=self.atten.out_dim, out_features=128)
-        self.fc2 = nn.Linear(in_features=128, out_features=class_num)
+        # self.fc1 = nn.Linear(in_features=self.atten.out_dim, out_features=128)
+        # self.fc2 = nn.Linear(in_features=128, out_features=class_num)
+
         self._loss = 0
 
+        # Predefined weighted matrix for loss calculation
         self.weight_thyroid_mat = np.array([[0.1, 0.3, 2.0],
                                             [0.7, 0.1, 1.0],
                                             [3.0, 0.3, 0.1]])
-
         self.weight_mucosa_mat = np.array([[0.1, 0.6, 1.0, 0.3],
                                            [1.0, 0.1, 1.0, 0.3],
                                            [1.0, 0.6, 0.1, 0.3],
                                            [1.0, 1.0, 1.0, 0.1]])
 
-    def forward(self, x, label=None, true_num= None):
+
+    def forward(self, x, label=None, true_num=None):
         B, N, C = x.size()
 
         if self.patch_mix == "att":
-            vlad, assignments = self.atten(x, true_num)
+            vlad, assignments = self.atten(x, true_num, recur_steps=self.recur_steps)
         elif self.patch_mix == "pool":
             vlad, assignments = batch_fea_pooling(x, true_num)
         else:
-            print("Unknow batch mix mode")
-            raise
+            raise NotImplementedError()
 
         if self.num_mlp_layer == 1:
             out = F.dropout(vlad, training=self.training)
             out = self.fc(out)
-        elif self.num_mlp_layer == 2:
-            out = self.fc1(vlad)
-            out = F.dropout(out, training=self.training)
-            out = self.fc2(out)
+        # elif self.num_mlp_layer == 2:
+        #     out = self.fc1(vlad)
+        #     out = F.dropout(out, training=self.training)
+        #     out = self.fc2(out)
         else:
-            print("Undefined number of mlp layer")
-            raise
+            raise NotImplementedError()
 
         if self.training:
             assert label is not None, "invalid label for training mode"
@@ -205,8 +226,8 @@ class logistWsiNet(nn.Module):
                 elif self.dataset == "Mucosa":
                     weight_mat = self.weight_mucosa_mat
                 else:
-                    print("unknow dataset")
-                    raise
+                    raise NotImplementedError()
+
                 out_numpy = np.argmax(out.data.cpu().numpy(), axis=1)
                 label_numpy = label.data.cpu().numpy().squeeze()
                 this_weight = get_weight(out_numpy, label_numpy, weight_mat)  # B x 1
