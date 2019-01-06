@@ -18,13 +18,13 @@ def set_args():
     parser = argparse.ArgumentParser(description = 'WSI diagnois')
     parser.add_argument("--model_path",      type=str,   default="")
     # model setting
-    parser.add_argument("--patch_mix",       type=str,   default="att")
+    parser.add_argument("--patch_mix",       type=str,   default="pool")
     parser.add_argument("--fea_mix",         type=str,   default="global")
     parser.add_argument("--data_dir",        type=str,   default="../data")
     parser.add_argument("--dataset",         type=str,   default="Thyroid")
     parser.add_argument("--num_mlp_layer",   type=int,   default=1)
-    parser.add_argument("--use_w_loss",      type=bool,  default=False)
-    parser.add_argument("--pre_load",        type=bool,  default=True)
+    parser.add_argument("--use_w_loss",      action='store_true')
+    parser.add_argument("--pre_load",        action='store_true')
     parser.add_argument("--class_num",       type=int,   default=3)
     parser.add_argument("--input_fea_num",   type=int,   default=2048)
     parser.add_argument("--recur_steps",     type=int,   default=3)
@@ -32,6 +32,7 @@ def set_args():
     parser.add_argument("--seed",            type=int,   default=1234)
     args = parser.parse_args()
     return args
+
 
 if  __name__ == '__main__':
     args = set_args()
@@ -54,7 +55,7 @@ if  __name__ == '__main__':
 
     # prepare data locations
     thyroid_data_root = os.path.join(args.data_dir, args.dataset+"Data")
-    test_dataset = ThyroidDataSet(test_data_root, testing=True, testing_num=1000, pre_load=args.pre_load)
+    test_dataset = ThyroidDataSet(test_data_root, testing=True, testing_num=128, pre_load=args.pre_load)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=1, num_workers=0, pin_memory=True)
     print(">> START testing")
     model_root = os.path.join(args.data_dir, "Models", args.dataset)

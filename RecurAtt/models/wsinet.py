@@ -179,9 +179,9 @@ class WsiNet(nn.Module):
         self._loss = 0
 
         # Predefined weighted matrix for loss calculation
-        self.weight_thyroid_mat = np.array([[0.1, 0.3, 2.0],
-                                            [0.7, 0.1, 1.0],
-                                            [3.0, 0.3, 0.1]])
+        self.weight_thyroid_mat = np.array([[0.1, 0.5, 1.0],
+                                            [1.0, 0.1, 2.0],
+                                            [2.0, 0.5, 0.1]])
 
         self.weight_mucosa_mat = np.array([[0.1, 0.6, 1.0, 0.3],
                                            [1.0, 0.1, 1.0, 0.3],

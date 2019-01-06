@@ -60,13 +60,13 @@ if  __name__ == '__main__':
     # Dataset preparetion
     thyroid_data_root = os.path.join(args.data_dir, args.dataset+"Data")
     train_data_root = os.path.join(thyroid_data_root, "Train")
-    val_data_root = os.path.join(thyroid_data_root, "Val")
-
-    # val_data_root = os.path.join(thyroid_data_root, "Test")
+    # val_data_root = os.path.join(thyroid_data_root, "Val")
+    val_data_root = os.path.join(thyroid_data_root, "Test")
 
     # create dataset
     train_dataset = ThyroidDataSet(train_data_root, testing=False, pre_load=args.pre_load)
     val_dataset = ThyroidDataSet(val_data_root, testing=True, testing_num=128, pre_load=args.pre_load)
+
     # create dataloader
     batch_sampler  = BatchSampler(label_dict=train_dataset.label_dict, batch_size=args.batch_size,
         data_len=len(train_dataset), class_ratio_array=train_dataset.class_ratio_array, num_sampling=8)
