@@ -15,7 +15,7 @@ from .proj_utils.torch_utils import LambdaLR
 
 def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
     net.train()
-    
+
     if args.use_w_loss:
         model_save_dir = mode_name + str(args.session) + "loss"
     else:
@@ -42,7 +42,7 @@ def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
             num_data  = true_num.cuda().long()
 
             im_label = im_label.view(-1, 1)
-            train_pred, assignments = net(im_data, im_label, true_num=num_data)
+            train_pred, assignments, fusionFea = net(im_data, im_label, true_num=num_data)
 
             vecloss = net.loss
             loss = torch.mean(vecloss)
@@ -70,7 +70,7 @@ def train_cls(dataloader, val_dataloader, model_root, mode_name, net, args):
                     val_data  =  val_data.cuda().float()
                     val_num   =  val_num.cuda().long()
 
-                    val_pred_pro, assignments = net(val_data, true_num = val_num)
+                    val_pred_pro, assignments, fusionFea = net(val_data, true_num = val_num)
                     val_pred_pro = val_pred_pro.cpu()
                     _, cls_labels  = torch.topk(val_pred_pro, 1, dim=1)
                     cls_labels    =  cls_labels.data.cpu().numpy()[:,0]

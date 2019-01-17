@@ -86,7 +86,6 @@ class ThyroidDataSet(Dataset):
                     this_data_path = self.file_list[index]
                     data = dd.io.load(this_data_path)
                     self.cur_filename = os.path.basename(this_data_path)
-                    # print("File name is: {}".format(self.cur_filename))
                     gt_bboxes = data['bbox']
 
                 label, logits, feat = data['cls_labels'], data['cls_pred'], data['feat']
@@ -114,11 +113,9 @@ class ThyroidDataSet(Dataset):
                     # combine fixed number + random chosen number
                     fixed_chosen_ind = total_ind[0:self.fixed_num+additoinal_num]
                     fixed_chosen_ind = np.random.choice(total_ind[0:self.fixed_num+additoinal_num], self.fixed_num)
-
                     random_chosen_ind = np.random.choice(total_ind[self.fixed_num+additoinal_num::],
                                                          chosen_num-self.fixed_num,
                                                          replace=False, p=this_probs_norm)
-
                     chosen_total_ind_ = np.concatenate([fixed_chosen_ind, random_chosen_ind], 0 )
 
                 chosen_total_ind_ = chosen_total_ind_.reshape((chosen_total_ind_.shape[0],))

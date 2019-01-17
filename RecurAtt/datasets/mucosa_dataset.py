@@ -5,7 +5,6 @@ import numpy as np
 import deepdish as dd
 import math, random
 
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -15,9 +14,8 @@ from .mucosa_config import folder_map_dict, folder_reverse_map, folder_ratio_map
 from .wsi_utils import aggregate_label, get_all_files
 
 
-
 class MucosaDataSet(Dataset):
-    def __init__(self, data_dir, testing=False, testing_num=40, pre_load=True):
+    def __init__(self, data_dir, testing=False, testing_num=50, pre_load=True):
         self.data_dir = data_dir
         self.testing = testing
         self.pre_load = pre_load
@@ -28,6 +26,7 @@ class MucosaDataSet(Dataset):
         self.folder_map_dict = folder_map_dict
         self.folder_reverse_map = folder_reverse_map
         self.folder_ratio_map = folder_ratio_map
+        self.cur_filename = None
 
         # calculate class_ratio_array
         class_ratio_array = [None]*len(self.folder_map_dict.keys())
@@ -53,11 +52,9 @@ class MucosaDataSet(Dataset):
         self.start = 0
         self.indices = list(range(self.img_num))
         self.temperature = 0.5
-        ## doubt about the following two
         self.fixed_num = 25
-        self.chosen_num_list = list(range(testing_num, testing_num+10))
-        self.max_num = 50 if not self.testing else self.testing_num
-
+        self.chosen_num_list = list(range(self.testing_num, self.testing_num+10))
+        self.max_num = self.testing_num+10 if not self.testing else self.testing_num
 
     def get_true_label(self, label):
         new_label =  self.class_map_dict[self.folder_reverse_map[label]]
@@ -86,8 +83,8 @@ class MucosaDataSet(Dataset):
                 else:
                     this_data_path = self.file_list[index]
                     data = dd.io.load(this_data_path)
-                    print("File name is: {}".format(os.path.basename(this_data_path)))
-                    gt_bboxes = data['bbox']
+                    gt_bboxes = np.asarray(data['bbox'])
+                    self.cur_filename = os.path.basename(this_data_path)
 
                 label = np.asarray(data['cls_labels'])
                 logits = np.asarray(data['cls_pred'])
@@ -103,40 +100,27 @@ class MucosaDataSet(Dataset):
                     else:
                         chosen_total_ind_ = total_ind
                 else:
-                    if len(label) <= self.chosen_num_list[0]:
+                    chosen_num = random.choice(self.chosen_num_list)
+                    chosen_num = min(chosen_num, int(0.9 * len(label)))
+
+                    additoinal_num  = 5
+                    if chosen_num < self.fixed_num + additoinal_num:
                         index = random.choice(self.indices)
                         continue
 
-                    additoinal_num  = 5
+                    # Use positive samples for selection
                     logits          = torch.from_numpy(logits).float() #.cuda()
                     neg_logits      = logits[self.fixed_num+additoinal_num::, 0] + 1e-5
                     gumbel_probs    = self.gumbel_softmax_sample(neg_logits, self.temperature)
                     this_probs_norm = gumbel_probs.cpu().numpy()
-
-                    # Use positive samples for selection
                     this_probs_norm = 1.0 - this_probs_norm
                     this_probs_norm = this_probs_norm / np.sum(this_probs_norm)
 
-                    chosen_num = random.choice(self.chosen_num_list)
-
-                    if len(label) > chosen_num + 5:
-                        # combine fixed number + random chosen number
-                        fixed_chosen_ind = total_ind[0:self.fixed_num+additoinal_num]
-                        fixed_chosen_ind = np.random.choice(total_ind[0:self.fixed_num+additoinal_num], self.fixed_num)
-                        random_chosen_ind = np.random.choice(total_ind[self.fixed_num+additoinal_num::],
-                                                             chosen_num-self.fixed_num,
-                                                             replace=False, p=this_probs_norm)
-                        chosen_total_ind_ = np.concatenate([fixed_chosen_ind, random_chosen_ind], 0)
-                    elif len(label) > self.testing_num:
-                        ttl_num = chosen_num if len(label) > chosen_num else len(label)
-                        fixed_chosen_ind = total_ind[0:self.fixed_num+additoinal_num]
-                        fixed_chosen_ind = np.random.choice(total_ind[0:self.fixed_num+additoinal_num], self.fixed_num)
-                        random_chosen_ind = np.random.choice(total_ind[self.fixed_num+additoinal_num::],
-                                                             ttl_num-self.fixed_num-5,
-                                                             replace=False, p=this_probs_norm)
-                        chosen_total_ind_ = np.concatenate([fixed_chosen_ind, random_chosen_ind], 0)
-                    else:
-                        chosen_total_ind_ = total_ind
+                    fixed_chosen_ind = total_ind[0:self.fixed_num+additoinal_num]
+                    fixed_chosen_ind = np.random.choice(total_ind[0:self.fixed_num+additoinal_num], self.fixed_num)
+                    random_chosen_ind = np.random.choice(total_ind[self.fixed_num+additoinal_num::],
+                                                         chosen_num-self.fixed_num, replace=False, p=this_probs_norm)
+                    chosen_total_ind_ = np.concatenate([fixed_chosen_ind, random_chosen_ind], 0)
 
                 chosen_total_ind_ = chosen_total_ind_.reshape((chosen_total_ind_.shape[0],))
                 chosen_feat = feat[chosen_total_ind_]
@@ -150,7 +134,6 @@ class MucosaDataSet(Dataset):
                     return feat_placeholder, this_true_label, true_num, gt_bboxes
 
             except Exception as err:
-                #print(err)
                 import traceback
                 traceback.print_tb(err.__traceback__)
                 print("Having problem with index {}".format(index))
@@ -204,18 +187,15 @@ class BatchSampler(object):
                 this_choice = np.random.choice(this_ind, this_num, replace=False)
             else:
                 this_choice = np.random.choice(this_ind, this_num, replace=True)
-
             indices.extend(this_choice)
 
         return indices
-
 
     def __iter__(self):
         for idx in range( self.num_batches):
             batch = self.get_indices_balance(self.label_dict,
                 self.num_sampling, self.batch_size, self.class_ratio_array)
             yield batch
-
 
     def __len__(self):
         return self.num_batches

@@ -71,8 +71,9 @@ def overlayWSI(wsi_path, patch_att_path, overlay_path, num=100, alp=0.65):
 
 
 if __name__ == "__main__":
+    database = "Thyroid"
     filename = "1239928"
-    wsi_path = "./data/Slides/{}.kfb".format(filename)
+    wsi_path = "./data/{}/Slides/{}.kfb".format(filename)
     patch_att_path = "./data/Feas/{}.h5".format(filename)
     overlay_path = "./data/Overlays"
 

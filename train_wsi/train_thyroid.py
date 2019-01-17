@@ -60,8 +60,8 @@ if  __name__ == '__main__':
     # Dataset preparetion
     thyroid_data_root = os.path.join(args.data_dir, args.dataset+"Data")
     train_data_root = os.path.join(thyroid_data_root, "Train")
-    # val_data_root = os.path.join(thyroid_data_root, "Val")
-    val_data_root = os.path.join(thyroid_data_root, "Test")
+    val_data_root = os.path.join(thyroid_data_root, "Val")
+    # val_data_root = os.path.join(thyroid_data_root, "Test")
 
     # create dataset
     train_dataset = ThyroidDataSet(train_data_root, testing=False, pre_load=args.pre_load)
@@ -72,7 +72,6 @@ if  __name__ == '__main__':
         data_len=len(train_dataset), class_ratio_array=train_dataset.class_ratio_array, num_sampling=8)
     train_dataloader = DataLoader(dataset=train_dataset, batch_sampler=batch_sampler, pin_memory=True)
     val_dataloader = DataLoader(dataset=val_dataset, batch_size= args.batch_size, pin_memory=True)
-
 
     print(">> START training")
     model_root = os.path.join(args.data_dir, "Models", args.dataset)

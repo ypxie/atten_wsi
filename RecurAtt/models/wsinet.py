@@ -200,8 +200,8 @@ class WsiNet(nn.Module):
             raise NotImplementedError()
 
         if self.num_mlp_layer == 1:
-            out = F.dropout(vlad, training=self.training)
-            out = self.fc(out)
+            fusionFea = F.dropout(vlad, training=self.training)
+            out = self.fc(fusionFea)
         # elif self.num_mlp_layer == 2:
         #     out = self.fc1(vlad)
         #     out = F.dropout(out, training=self.training)
@@ -226,10 +226,10 @@ class WsiNet(nn.Module):
                 this_weight = get_weight(out_numpy, label_numpy, weight_mat)  # B x 1
                 this_weight_var = self._loss.new_tensor(torch.from_numpy(this_weight))
                 self._loss = self._loss * this_weight_var
-            return out, assignments
+            return out, assignments, fusionFea
         else:
             cls_pred = F.softmax(out, dim=1)
-            return cls_pred, assignments
+            return cls_pred, assignments, fusionFea
 
     @property
     def loss(self):

@@ -44,7 +44,6 @@ def get_all_files(rootFolder, inputext = ['.h5'], class_map_dict=None, pre_load=
                     print('cannot process data[feat] in {}'.format(this_file_path))
                     data = None
                 file_list.append(data)
-
             else:
                 file_list.append(this_file_path)
             label_list.append(this_cls)
