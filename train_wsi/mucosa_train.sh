@@ -8,5 +8,6 @@ python train_mucosa.py \
     --dataset "Mucosa" \
     --num_mlp_layer 1 \
     --recur_steps 4 \
-    --maxepoch 160 \
-    --session 4
+    --maxepoch 100 \
+    --session 4 \
+    --batch_size 16
